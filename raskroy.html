@@ -423,7 +423,7 @@ function esc(s) { return String(s ?? '').replace(/[<>&"']/g, c => ({'<':'&lt;','
 function fmtMm(mm) { return mm >= 1000 ? (mm / 1000).toFixed(2).replace(/\.?0+$/, '') + ' м' : Math.round(mm) + ' мм'; }
 function pct(p) { return p.toFixed(1) + '%'; }
 function fmtMoney(v) {
-    if (!v) return '0 грн';
+    if (!v) return 'Безкоштовно';
     const r = Math.round(v * 100) / 100;
     const s = r.toFixed(r % 1 === 0 ? 0 : 2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
     return s + ' грн';
