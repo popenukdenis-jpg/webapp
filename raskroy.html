@@ -540,6 +540,25 @@ const STD_SHEETS = [
     { w: 1000, h: 2000 },
 ];
 
+// Прайс КТ-Сталь · плазмова різка (грн)
+const KT_PLASMA_PRICES = [
+    { t: 1.5, cut: 11, pierce: 2 },
+    { t: 2,   cut: 12, pierce: 3 },
+    { t: 3,   cut: 16, pierce: 3 },
+    { t: 4,   cut: 17, pierce: 3 },
+    { t: 5,   cut: 21, pierce: 3 },
+    { t: 6,   cut: 22, pierce: 4 },
+    { t: 8,   cut: 25, pierce: 6 },
+    { t: 10,  cut: 32, pierce: 7 },
+    { t: 12,  cut: 35, pierce: 7 },
+    { t: 14,  cut: 39, pierce: 7 },
+    { t: 16,  cut: 43, pierce: 8 },
+    { t: 18,  cut: 47, pierce: 8 },
+    { t: 20,  cut: 53, pierce: 11 },
+];
+
+function ktPriceFor(t) { return KT_PLASMA_PRICES.find(x => x.t === +t); }
+
 function sheetHtml(sh, idx) {
     const isStd = STD_SHEETS.some(s => s.w === sh.sheetW && s.h === sh.sheetH);
     const sizeButtons = STD_SHEETS.map(s =>
@@ -564,7 +583,10 @@ function sheetHtml(sh, idx) {
             <input class="name-input" type="text" placeholder="Номенклатура (напр. Лист)" value="${esc(sh.name)}" data-name>
             <div style="display:flex;align-items:center;gap:6px;">
                 <span style="font-size:12px;color:#6b7280;">Товщина</span>
-                <input type="number" min="0" step="0.5" value="${sh.thickness || ''}" data-thickness placeholder="мм" style="width:80px;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:16px;">
+                <select data-thickness style="padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:16px;font-family:inherit;background:#fff;">
+                    <option value="">—</option>
+                    ${KT_PLASMA_PRICES.map(p => `<option value="${p.t}" ${(+sh.thickness === p.t) ? 'selected' : ''}>${p.t} мм</option>`).join('')}
+                </select>
             </div>
             <span class="nom-meta">${totalQty ? totalQty + ' шт.' : '—'}</span>
             <div class="toggle" data-size-toggle>${sizeButtons}</div>
