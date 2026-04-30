@@ -266,15 +266,8 @@ td.act { width: 32px; text-align: center; }
             <label>Ширина різу (kerf), мм</label>
             <input type="number" id="fKerfSheet" min="0" step="0.5" placeholder="0">
         </div>
-        <div class="field">
-            <label>Ціна врізки, грн</label>
-            <input type="number" id="fPiercePrice" min="0" step="0.5" placeholder="0">
-        </div>
-        <div class="field">
-            <label>Ціна 1 м різу, грн</label>
-            <input type="number" id="fCutMeterPrice" min="0" step="0.5" placeholder="0">
-        </div>
     </div>
+    <div class="sub" style="margin-top:8px; font-size:12px;">Ціни плазмового різу автоматично за прайсом КТ-Сталь · підставляються з товщини листа</div>
 </div>
 
 <div id="sheetsContainer" class="no-print"></div>
@@ -304,9 +297,7 @@ const state = {
     // Для листового раскроя
     orderSheet: '',
     kerfSheet: 0,
-    piercePrice: 0,
-    cutMeterPrice: 0,
-    sheets: [],     // [{id, name, sheetW, sheetH, collapsed, pieces:[{w,h,qty}]}]
+    sheets: [],     // [{id, name, sheetW, sheetH, thickness, collapsed, pieces:[{w,h,qty}]}]
     resultSheet: null,
 };
 
@@ -326,8 +317,7 @@ function save() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify({
         activeTab: state.activeTab,
         order: state.order, kerf: state.kerf, minRem: state.minRem, profiles: state.profiles,
-        orderSheet: state.orderSheet, kerfSheet: state.kerfSheet,
-        piercePrice: state.piercePrice, cutMeterPrice: state.cutMeterPrice, sheets: state.sheets,
+        orderSheet: state.orderSheet, kerfSheet: state.kerfSheet, sheets: state.sheets,
     })); } catch (e) {}
 }
 function load() {
@@ -344,8 +334,6 @@ function load() {
             }
             state.orderSheet = s.orderSheet || '';
             state.kerfSheet = s.kerfSheet ?? 0;
-            state.piercePrice = s.piercePrice ?? 0;
-            state.cutMeterPrice = s.cutMeterPrice ?? 0;
             if (Array.isArray(s.sheets)) {
                 state.sheets = s.sheets;
                 for (const sh of state.sheets) if (sh.id >= nextSheetId) nextSheetId = sh.id + 1;
@@ -507,8 +495,6 @@ function applyStateToUI() {
 
     fOrderSheet.value = state.orderSheet || '';
     fKerfSheet.value = state.kerfSheet || '';
-    fPiercePrice.value = state.piercePrice || '';
-    fCutMeterPrice.value = state.cutMeterPrice || '';
 
     // Активная вкладка
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === state.activeTab));
@@ -525,13 +511,9 @@ document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () =>
 // === Параметры заказа: листовой раскрой ===
 const fOrderSheet = document.getElementById('fOrderSheet');
 const fKerfSheet = document.getElementById('fKerfSheet');
-const fPiercePrice = document.getElementById('fPiercePrice');
-const fCutMeterPrice = document.getElementById('fCutMeterPrice');
 
 fOrderSheet.addEventListener('input', () => { state.orderSheet = fOrderSheet.value; save(); });
 fKerfSheet.addEventListener('input', () => { state.kerfSheet = parseFloat(fKerfSheet.value) || 0; save(); });
-fPiercePrice.addEventListener('input', () => { state.piercePrice = parseFloat(fPiercePrice.value) || 0; save(); });
-fCutMeterPrice.addEventListener('input', () => { state.cutMeterPrice = parseFloat(fCutMeterPrice.value) || 0; save(); });
 
 // === Рендер блоков листов ===
 const STD_SHEETS = [
@@ -625,12 +607,17 @@ function findSheet(el) {
     return state.sheets.find(s => s.id === id);
 }
 
+document.getElementById('sheetsContainer').addEventListener('change', e => {
+    const t = e.target;
+    if (!t.matches('[data-thickness]')) return;
+    const sh = findSheet(t); if (!sh) return;
+    sh.thickness = parseFloat(t.value) || 0; save();
+});
 document.getElementById('sheetsContainer').addEventListener('input', e => {
     const t = e.target;
     const sh = findSheet(t);
     if (!sh) return;
     if (t.matches('[data-name]')) { sh.name = t.value; save(); return; }
-    if (t.matches('[data-thickness]')) { sh.thickness = parseFloat(t.value) || 0; save(); return; }
     if (t.matches('[data-custom-w]')) { const v = parseInt(t.value, 10) || 0; if (v > 0) { sh.sheetW = v; save(); } return; }
     if (t.matches('[data-custom-h]')) { const v = parseInt(t.value, 10) || 0; if (v > 0) { sh.sheetH = v; save(); } return; }
     if (t.matches('[data-pi]')) {
