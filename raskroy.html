@@ -55,7 +55,7 @@ td.act { width: 32px; text-align: center; }
 #result { display: none; }
 #result.show { display: block; }
 
-.summary { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; margin-bottom: 14px; }
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(115px, 1fr)); gap: 8px; margin-bottom: 14px; }
 .stat { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 8px 10px; min-width: 0; display: flex; flex-direction: column; justify-content: space-between; gap: 4px; }
 .stat .k { font-size: 10px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.4px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .stat .v { font-size: 16px; font-weight: 600; color: #111827; font-variant-numeric: tabular-nums; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1138,6 +1138,7 @@ function renderResult(report) {
         let bodyHtml = `<div class="summary">
             <div class="stat"><div class="k">Хлистів</div><div class="v">${r.bars.length}</div></div>
             <div class="stat"><div class="k">Заготовка</div><div class="v">${fmtMm(r.barLen)}</div></div>
+            <div class="stat"><div class="k">Метрів клієнту</div><div class="v">${fmtMm(billableP)}</div></div>
             <div class="stat good"><div class="k">У деталях</div><div class="v">${pct(usedP)}</div></div>
             <div class="stat warn"><div class="k">Складський залишок</div><div class="v">${fmtMm(r.totalStockable)}</div></div>
             <div class="stat"><div class="k">Різів</div><div class="v">${sawCuts}</div></div>
