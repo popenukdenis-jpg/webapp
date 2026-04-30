@@ -491,14 +491,12 @@ function renderResult(report) {
             <div class="stat"><div class="k">Длина металла</div><div class="v">${fmtMm(totalLen)}</div></div>
             <div class="stat good"><div class="k">В деталях</div><div class="v">${pct(usedPct)}</div></div>
             <div class="stat warn"><div class="k">Остаток</div><div class="v">${fmtMm(totalRem)}</div></div>
-            <div class="stat bad"><div class="k">Остатки (с резом)</div><div class="v">${pct(wastePct)}</div></div>
             <div class="stat"><div class="k">Резов всего</div><div class="v" data-total-saw>${totalSawCuts}</div></div>
             <div class="stat cost"><div class="k">Стоимость резов</div><div class="v" data-total-cost>${fmtMoney(totalCost)}</div></div>
         </div>
         <div class="legend no-print">
             <span><i style="background:#bfdbfe;border-color:#1d4ed8;"></i>отрез</span>
-            <span><i style="background:#fde68a;border-color:#b45309;"></i>деловой обрезок</span>
-            <span><i style="background:#fecaca;border-color:#b91c1c;"></i>остаток</span>
+            <span><i style="background:#fde68a;border-color:#b45309;"></i>остаток</span>
             <span><i style="background:#374151;border-color:#374151;"></i>пропил</span>
         </div>
     </div>`;
