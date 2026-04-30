@@ -191,14 +191,31 @@ td.act { width: 32px; text-align: center; }
 .result-head .meta { font-size: 12px; color: #6b7280; margin-left: auto; }
 .result-body { padding: 14px 16px; }
 .result-body.hidden { display: none; }
+
+.tabs { display: flex; gap: 2px; margin-bottom: 14px; border-bottom: 2px solid #e5e7eb; }
+.tab { padding: 10px 18px; background: none; border: none; cursor: pointer; font-size: 14px; color: #6b7280; border-bottom: 2px solid transparent; margin-bottom: -2px; font-weight: 500; font-family: inherit; }
+.tab:hover { color: #1d4ed8; }
+.tab.active { color: #1d4ed8; border-bottom-color: #1d4ed8; font-weight: 600; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+.size-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; align-items: end; }
+.size-grid label { font-size: 12px; color: #6b7280; }
+.piece-tbl th:nth-child(2), .piece-tbl th:nth-child(3) { width: 110px; }
 </style>
 </head>
 <body>
 
 <header>
     <h1>КТ Сталь · Розкрій металопрокату</h1>
-    <div class="sub">Лінійний 1D-розкрій з мінімізацією залишків · карта різу для складу</div>
+    <div class="sub">1D лінійний · 2D листовий · карта різу для складу</div>
 </header>
+
+<div class="tabs no-print">
+    <button class="tab active" data-tab="linear">Лінійний розкрій</button>
+    <button class="tab" data-tab="sheet">Розкрій листа</button>
+</div>
+
+<div id="tabLinear" class="tab-panel active">
 
 <div class="card no-print">
     <h2>Замовлення</h2>
@@ -230,36 +247,112 @@ td.act { width: 32px; text-align: center; }
 
 <div id="result"></div>
 
+</div><!-- /#tabLinear -->
+
+<div id="tabSheet" class="tab-panel">
+
+<div class="card no-print">
+    <h2>Замовлення (лист)</h2>
+    <div class="row">
+        <div class="field">
+            <label>№ замовлення</label>
+            <input type="text" id="fOrderSheet" placeholder="ЗМ-00123">
+        </div>
+        <div class="field">
+            <label>Ширина різу (kerf), мм</label>
+            <input type="number" id="fKerfSheet" min="0" step="0.5" placeholder="0">
+        </div>
+        <div class="field">
+            <label>Ціна врізки, грн</label>
+            <input type="number" id="fPiercePrice" min="0" step="0.5" placeholder="0">
+        </div>
+        <div class="field">
+            <label>Ціна 1 м різу, грн</label>
+            <input type="number" id="fCutMeterPrice" min="0" step="0.5" placeholder="0">
+        </div>
+    </div>
+</div>
+
+<div id="sheetsContainer" class="no-print"></div>
+
+<div class="add-nom no-print">
+    <button class="btn" id="btnAddSheet">+ Додати номенклатуру</button>
+</div>
+
+<div class="card no-print" style="text-align:center;">
+    <button class="btn primary big" id="btnCalcSheet">Розрахувати розкрій листа</button>
+</div>
+
+<div id="resultSheet"></div>
+
+</div><!-- /#tabSheet -->
+
 <script>
 // === Состояние ===
 const state = {
+    activeTab: 'linear',
     order: '',
     kerf: 0,
     minRem: 0,
     profiles: [],   // [{id, name, barLen, collapsed, cuts:[{length,qty}]}]
     result: null,
+
+    // Для листового раскроя
+    orderSheet: '',
+    kerfSheet: 0,
+    piercePrice: 0,
+    cutMeterPrice: 0,
+    sheets: [],     // [{id, name, sheetW, sheetH, collapsed, pieces:[{w,h,qty}]}]
+    resultSheet: null,
 };
 
-const STORAGE_KEY = 'raskroy.v3';
+const STORAGE_KEY = 'raskroy.v4';
 let nextProfId = 1;
+let nextSheetId = 1;
 
 function newProfile(name = '', barLen = 12000) {
     return { id: nextProfId++, name, barLen, cutPrice: 0, collapsed: false, cuts: [{ length: 0, qty: 0 }] };
 }
 
+function newSheet(name = '', sheetW = 1500, sheetH = 6000) {
+    return { id: nextSheetId++, name, sheetW, sheetH, collapsed: false, pieces: [{ w: 0, h: 0, qty: 0 }] };
+}
+
 function save() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        activeTab: state.activeTab,
         order: state.order, kerf: state.kerf, minRem: state.minRem, profiles: state.profiles,
+        orderSheet: state.orderSheet, kerfSheet: state.kerfSheet,
+        piercePrice: state.piercePrice, cutMeterPrice: state.cutMeterPrice, sheets: state.sheets,
     })); } catch (e) {}
 }
 function load() {
     try {
         const s = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-        if (s && Array.isArray(s.profiles)) {
+        if (s) {
+            state.activeTab = s.activeTab || 'linear';
             state.order = s.order || '';
             state.kerf = s.kerf ?? 0;
             state.minRem = s.minRem ?? 0;
-            state.profiles = s.profiles;
+            if (Array.isArray(s.profiles)) {
+                state.profiles = s.profiles;
+                for (const p of state.profiles) if (p.id >= nextProfId) nextProfId = p.id + 1;
+            }
+            state.orderSheet = s.orderSheet || '';
+            state.kerfSheet = s.kerfSheet ?? 0;
+            state.piercePrice = s.piercePrice ?? 0;
+            state.cutMeterPrice = s.cutMeterPrice ?? 0;
+            if (Array.isArray(s.sheets)) {
+                state.sheets = s.sheets;
+                for (const sh of state.sheets) if (sh.id >= nextSheetId) nextSheetId = sh.id + 1;
+            }
+            return;
+        }
+        // миграция со старых v3
+        const old3 = JSON.parse(localStorage.getItem('raskroy.v3') || 'null');
+        if (old3 && Array.isArray(old3.profiles)) {
+            state.order = old3.order || '';
+            state.profiles = old3.profiles;
             for (const p of state.profiles) if (p.id >= nextProfId) nextProfId = p.id + 1;
             return;
         }
@@ -407,7 +500,151 @@ function applyStateToUI() {
     fOrder.value = state.order || '';
     fKerf.value = state.kerf || '';
     fMinRem.value = state.minRem || '';
+
+    fOrderSheet.value = state.orderSheet || '';
+    fKerfSheet.value = state.kerfSheet || '';
+    fPiercePrice.value = state.piercePrice || '';
+    fCutMeterPrice.value = state.cutMeterPrice || '';
+
+    // Активная вкладка
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === state.activeTab));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === ('tab' + state.activeTab.charAt(0).toUpperCase() + state.activeTab.slice(1))));
 }
+
+// === Вкладки ===
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+    state.activeTab = t.dataset.tab;
+    applyStateToUI();
+    save();
+}));
+
+// === Параметры заказа: листовой раскрой ===
+const fOrderSheet = document.getElementById('fOrderSheet');
+const fKerfSheet = document.getElementById('fKerfSheet');
+const fPiercePrice = document.getElementById('fPiercePrice');
+const fCutMeterPrice = document.getElementById('fCutMeterPrice');
+
+fOrderSheet.addEventListener('input', () => { state.orderSheet = fOrderSheet.value; save(); });
+fKerfSheet.addEventListener('input', () => { state.kerfSheet = parseFloat(fKerfSheet.value) || 0; save(); });
+fPiercePrice.addEventListener('input', () => { state.piercePrice = parseFloat(fPiercePrice.value) || 0; save(); });
+fCutMeterPrice.addEventListener('input', () => { state.cutMeterPrice = parseFloat(fCutMeterPrice.value) || 0; save(); });
+
+// === Рендер блоков листов ===
+const STD_SHEETS = [
+    { w: 1500, h: 6000 },
+    { w: 1250, h: 2500 },
+    { w: 1000, h: 2000 },
+];
+
+function sheetHtml(sh, idx) {
+    const isStd = STD_SHEETS.some(s => s.w === sh.sheetW && s.h === sh.sheetH);
+    const sizeButtons = STD_SHEETS.map(s =>
+        `<button data-size="${s.w}x${s.h}" class="${(sh.sheetW === s.w && sh.sheetH === s.h) ? 'active' : ''}">${s.w}×${s.h}</button>`
+    ).join('') + `<button data-size="custom" class="${!isStd ? 'active' : ''}">інший</button>`;
+
+    const rows = sh.pieces.map((c, i) => `
+        <tr>
+            <td style="color:#6b7280; font-variant-numeric:tabular-nums; width:40px;">${i + 1}</td>
+            <td class="num"><input type="number" min="1" step="1" value="${c.w || ''}" data-pi="${i}" data-k="w"></td>
+            <td class="num"><input type="number" min="1" step="1" value="${c.h || ''}" data-pi="${i}" data-k="h"></td>
+            <td class="num"><input type="number" min="1" step="1" value="${c.qty || ''}" data-pi="${i}" data-k="qty"></td>
+            <td class="act"><button class="del" data-del-piece="${i}" title="Видалити">✕</button></td>
+        </tr>
+    `).join('') || `<tr><td colspan="5" style="color:#9ca3af; text-align:center; padding:16px;">Додайте рядки кнопкою нижче</td></tr>`;
+
+    const totalQty = sh.pieces.reduce((s, c) => s + ((c.w | 0) > 0 && (c.h | 0) > 0 && (c.qty | 0) > 0 ? c.qty : 0), 0);
+
+    return `<div class="nom-card" data-sid="${sh.id}">
+        <div class="nom-head">
+            <span class="caret" data-toggle title="${sh.collapsed ? 'Розгорнути' : 'Згорнути'}">${sh.collapsed ? '+' : '−'}</span>
+            <input class="name-input" type="text" placeholder="Номенклатура (напр. Лист 4 мм)" value="${esc(sh.name)}" data-name>
+            <span class="nom-meta">${totalQty ? totalQty + ' шт.' : '—'}</span>
+            <div class="toggle" data-size-toggle>${sizeButtons}</div>
+            ${!isStd ? `<div style="display:flex;gap:4px;align-items:center;"><input type="number" min="100" step="10" value="${sh.sheetW}" data-custom-w style="width:80px;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;"><span style="color:#9ca3af;">×</span><input type="number" min="100" step="10" value="${sh.sheetH}" data-custom-h style="width:80px;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;"></div>` : ''}
+            <button class="nom-del" data-del-sheet title="Видалити номенклатуру">✕</button>
+        </div>
+        <div class="nom-body ${sh.collapsed ? 'hidden' : ''}">
+            <table class="piece-tbl">
+                <thead><tr>
+                    <th style="width:40px;">№</th><th>Ширина, мм</th><th>Довжина, мм</th><th>Кількість</th><th></th>
+                </tr></thead>
+                <tbody>${rows}</tbody>
+            </table>
+            <div class="toolbar">
+                <button class="btn" data-add-piece>+ рядок</button>
+                <button class="btn ghost" data-clear-pieces>Очистити</button>
+                <button class="btn ghost" data-toggle title="Згорнути блок" style="margin-left:auto;">− згорнути</button>
+            </div>
+        </div>
+    </div>`;
+}
+
+function renderSheets() {
+    const root = document.getElementById('sheetsContainer');
+    if (state.sheets.length === 0) {
+        root.innerHTML = `<div class="card" style="text-align:center; color:#6b7280;">Додайте першу номенклатуру кнопкою нижче</div>`;
+        return;
+    }
+    root.innerHTML = state.sheets.map(sheetHtml).join('');
+}
+
+function findSheet(el) {
+    const card = el.closest('[data-sid]');
+    if (!card) return null;
+    const id = +card.dataset.sid;
+    return state.sheets.find(s => s.id === id);
+}
+
+document.getElementById('sheetsContainer').addEventListener('input', e => {
+    const t = e.target;
+    const sh = findSheet(t);
+    if (!sh) return;
+    if (t.matches('[data-name]')) { sh.name = t.value; save(); return; }
+    if (t.matches('[data-custom-w]')) { const v = parseInt(t.value, 10) || 0; if (v > 0) { sh.sheetW = v; save(); } return; }
+    if (t.matches('[data-custom-h]')) { const v = parseInt(t.value, 10) || 0; if (v > 0) { sh.sheetH = v; save(); } return; }
+    if (t.matches('[data-pi]')) {
+        const pi = +t.dataset.pi, k = t.dataset.k;
+        sh.pieces[pi][k] = parseInt(t.value, 10) || 0;
+        const meta = t.closest('[data-sid]').querySelector('.nom-meta');
+        const total = sh.pieces.reduce((s, c) => s + ((c.w | 0) > 0 && (c.h | 0) > 0 && (c.qty | 0) > 0 ? c.qty : 0), 0);
+        if (meta) meta.textContent = total ? total + ' шт.' : '—';
+        save();
+    }
+});
+
+document.getElementById('sheetsContainer').addEventListener('click', e => {
+    const t = e.target;
+    const sh = findSheet(t);
+    if (!sh) return;
+
+    if (t.closest('[data-toggle]')) { sh.collapsed = !sh.collapsed; renderSheets(); save(); return; }
+    if (t.closest('[data-del-sheet]')) {
+        if (state.sheets.length === 1 || confirm(`Видалити номенклатуру «${sh.name || 'без назви'}»?`)) {
+            state.sheets = state.sheets.filter(x => x.id !== sh.id);
+            renderSheets(); save();
+        }
+        return;
+    }
+    const sizeBtn = t.closest('[data-size-toggle] button');
+    if (sizeBtn) {
+        const v = sizeBtn.dataset.size;
+        if (v === 'custom') { /* keep current */ }
+        else { const [w, h] = v.split('x').map(Number); sh.sheetW = w; sh.sheetH = h; }
+        renderSheets(); save(); return;
+    }
+    const delPiece = t.closest('[data-del-piece]');
+    if (delPiece) { sh.pieces.splice(+delPiece.dataset.delPiece, 1); renderSheets(); save(); return; }
+    if (t.closest('[data-add-piece]')) { sh.pieces.push({ w: 0, h: 0, qty: 0 }); renderSheets(); save(); return; }
+    if (t.closest('[data-clear-pieces]')) {
+        if (!sh.pieces.length || confirm('Очистити всі рядки?')) { sh.pieces = []; renderSheets(); save(); }
+        return;
+    }
+});
+
+document.getElementById('btnAddSheet').addEventListener('click', () => {
+    state.sheets.push(newSheet());
+    renderSheets(); save();
+});
 
 // === Оптимизатор ===
 // Алгоритм: «best pattern next» — на каждой итерации находим оптимальное
@@ -739,11 +976,18 @@ document.getElementById('btnCalc').addEventListener('click', () => {
     setTimeout(() => document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
 });
 
+// === Расчёт листового раскроя (заглушка — в следующей части) ===
+document.getElementById('btnCalcSheet').addEventListener('click', () => {
+    alert('Розрахунок листового розкрою — у наступному оновленні. Зараз можна тільки заповнювати дані.');
+});
+
 // === Init ===
 load();
 if (state.profiles.length === 0) state.profiles.push(newProfile('', 12000));
+if (state.sheets.length === 0) state.sheets.push(newSheet('', 1500, 6000));
 applyStateToUI();
 renderProfiles();
+renderSheets();
 </script>
 </body>
 </html>
