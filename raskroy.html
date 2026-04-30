@@ -1092,8 +1092,9 @@ function renderResult(report) {
     const totalRem = report.results.reduce((s, x) => s + (x.r.totalStockable || 0), 0);
     const totalSawCuts = report.results.reduce((s, x) => s + (x.sawCuts || 0), 0);
     const totalCost = report.results.reduce((s, x) => s + (x.cost || 0), 0);
-    const usedPct = totalLen > 0 ? (totalCutsLen / totalLen * 100) : 0;
-    const wastePct = totalLen > 0 ? (totalWaste / totalLen * 100) : 0;
+    const billable = totalLen - totalRem;
+    const usedPct = billable > 0 ? (totalCutsLen / billable * 100) : 0;
+    const wastePct = billable > 0 ? (totalWaste / billable * 100) : 0;
 
     html += `<div class="card order-summary"><h2 class="no-print">Зведення по замовленню</h2>
         <div class="summary">
@@ -1128,7 +1129,8 @@ function renderResult(report) {
             </div>`;
             return;
         }
-        const usedP = r.totalBarsLen > 0 ? (r.totalCutsLen / r.totalBarsLen * 100) : 0;
+        const billableP = r.totalBarsLen - (r.totalStockable || 0);
+        const usedP = billableP > 0 ? (r.totalCutsLen / billableP * 100) : 0;
         const sawCuts = entry.sawCuts;
         const price = +p.cutPrice || 0;
         const cost = entry.cost;
@@ -1166,7 +1168,8 @@ function renderResult(report) {
         const p = entry.profile, r = entry.r;
         const validCuts = p.cuts.filter(c => (c.length | 0) > 0 && (c.qty | 0) > 0);
         const totalQty = validCuts.reduce((s, c) => s + (c.qty | 0), 0);
-        const usedP = (r && !r.error && r.totalBarsLen > 0) ? (r.totalCutsLen / r.totalBarsLen * 100) : 0;
+        const cvBillable = (r && !r.error) ? (r.totalBarsLen - (r.totalStockable || 0)) : 0;
+        const usedP = cvBillable > 0 ? (r.totalCutsLen / cvBillable * 100) : 0;
         cvHtml += `<div class="cv-block">
             <div class="cv-head">
                 <span class="title">${esc(p.name) || 'Номенклатура №' + (idx + 1)}</span>
