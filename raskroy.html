@@ -467,12 +467,11 @@ function renderBarSvg(b, num, barLen, kerf) {
     }
     svg += `</svg>`;
 
-    const cutsTxt = b.cuts.map(c => `${c.len}${c.mark ? ' [' + esc(c.mark) + ']' : ''}`).join(' + ');
     const tailLabel = b.tail <= 0 ? 'без остатка'
         : (b.isRemnant ? `обрезок ${Math.round(b.tail)} мм → склад` : `отход ${Math.round(b.tail)} мм`);
     return `<div class="bar">
         <div class="bar-head">
-            <span><b>Хлыст #${num}</b> · ${b.cuts.length} отр. · ${cutsTxt}</span>
+            <span><b>Хлыст #${num}</b> · ${b.cuts.length} отр.</span>
             <span>${tailLabel}</span>
         </div>
         ${svg}
