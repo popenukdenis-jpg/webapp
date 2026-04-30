@@ -467,11 +467,13 @@ function renderResult(report) {
             return;
         }
         const usedP = r.totalBarsLen > 0 ? (r.totalCutsLen / r.totalBarsLen * 100) : 0;
+        const sawCuts = r.bars.reduce((s, b) => s + (b.cuts.length === 0 ? 0 : (b.tail > 0 ? b.cuts.length : b.cuts.length - 1)), 0);
         let bodyHtml = `<div class="summary">
             <div class="stat"><div class="k">Хлыстов</div><div class="v">${r.bars.length}</div></div>
             <div class="stat"><div class="k">Заготовка</div><div class="v">${fmtMm(r.barLen)}</div></div>
             <div class="stat good"><div class="k">В деталях</div><div class="v">${pct(usedP)}</div></div>
             <div class="stat warn"><div class="k">Обрезки</div><div class="v">${fmtMm(r.totalRemnant)}</div></div>
+            <div class="stat"><div class="k">Резов</div><div class="v">${sawCuts}</div></div>
         </div>`;
         r.bars.forEach((b, i) => { bodyHtml += renderBarSvg(b, i + 1, r.barLen, r.kerf, p.name); });
         if (r.unplaced && r.unplaced.length) {
