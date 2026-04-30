@@ -94,10 +94,22 @@ td.act { width: 32px; text-align: center; }
     h1 { font-size: 16px; }
     .stat { background: #fff; }
     .print-header { display: block !important; border-bottom: 2px solid #111; margin-bottom: 12px; padding-bottom: 6px; }
+
+    /* Режим «для клиента»: только сводка-заказ, скрываем карту реза */
+    body.print-client .result-block, body.print-client #result > .card { display: none !important; }
+    body.print-client .client-view { display: block !important; }
+    /* Режим «для склада»: скрываем клиентскую сводку */
+    body:not(.print-client) .client-view { display: none !important; }
 }
 .print-header { display: none; }
 .print-header h1 { margin-bottom: 2px; }
 .print-header .meta { font-size: 12px; color: #374151; }
+
+.client-view { display: none; }
+.client-view h3 { margin: 14px 0 6px 0; font-size: 14px; }
+.client-view table.cv-tbl { border-collapse: collapse; margin-bottom: 10px; }
+.client-view table.cv-tbl th, .client-view table.cv-tbl td { border: 1px solid #555; padding: 4px 10px; font-size: 13px; }
+.client-view .cv-foot { font-size: 13px; color: #111; margin-top: 12px; padding-top: 8px; border-top: 2px solid #111; font-weight: 600; }
 
 .nom-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); overflow: hidden; }
 .nom-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #f9fafb; border-bottom: 1px solid #e5e7eb; flex-wrap: wrap; }
@@ -515,8 +527,32 @@ function renderResult(report) {
         </div>`;
     });
 
+    // Клиентская сводка — печатается только в режиме "Печать для клиента"
+    let cvHtml = `<div class="client-view">
+        <div class="print-header" style="display:block;">
+            <h1>Заказ ${esc(state.order) || '—'}</h1>
+            <div class="meta">Дата: ${dateStr}</div>
+        </div>`;
+    report.results.forEach((entry, idx) => {
+        const p = entry.profile, r = entry.r;
+        const validCuts = p.cuts.filter(c => (c.length | 0) > 0 && (c.qty | 0) > 0);
+        cvHtml += `<h3>${idx + 1}. ${esc(p.name) || 'Номенклатура #' + (idx + 1)} <span style="font-weight:400;color:#555;">(заготовка ${fmtMm(p.barLen)})</span></h3>`;
+        cvHtml += `<table class="cv-tbl"><thead><tr><th>№</th><th>Длина, мм</th><th>Кол-во</th></tr></thead><tbody>`;
+        validCuts.forEach((c, i) => {
+            cvHtml += `<tr><td style="text-align:right;">${i + 1}</td><td style="text-align:right;">${c.length}</td><td style="text-align:right;">${c.qty}</td></tr>`;
+        });
+        cvHtml += `</tbody></table>`;
+        if (!r.error) {
+            cvHtml += `<div style="font-size:13px; color:#374151;">Хлыстов: <b>${r.bars.length}</b> · Резов: <b>${entry.sawCuts || 0}</b> · Стоимость резов: <b>${fmtMoney(entry.cost || 0)}</b></div>`;
+        }
+    });
+    cvHtml += `<div class="cv-foot">ИТОГО: ${totalBars} ${pluralBars(totalBars)} · Резов: ${totalSawCuts} · Стоимость резов: ${fmtMoney(totalCost)}</div>`;
+    cvHtml += `</div>`;
+    html += cvHtml;
+
     html += `<div class="footer-act no-print">
-        <button class="btn primary" id="btnPrint">🖨 Печать карты</button>
+        <button class="btn primary" id="btnPrintWh">🖨 Карта раскроя (склад)</button>
+        <button class="btn primary" id="btnPrintCl">🖨 Заказ (клиент)</button>
         <button class="btn" id="btnCsv">Экспорт CSV</button>
         <button class="btn ghost" id="btnHide">Скрыть</button>
     </div>`;
@@ -552,7 +588,13 @@ function renderResult(report) {
         save();
     });
 
-    document.getElementById('btnPrint').addEventListener('click', () => window.print());
+    function printAs(mode) {
+        document.body.classList.toggle('print-client', mode === 'client');
+        window.print();
+    }
+    window.addEventListener('afterprint', () => document.body.classList.remove('print-client'), { once: true });
+    document.getElementById('btnPrintWh').addEventListener('click', () => printAs('warehouse'));
+    document.getElementById('btnPrintCl').addEventListener('click', () => printAs('client'));
     document.getElementById('btnCsv').addEventListener('click', () => exportCsv(report));
     document.getElementById('btnHide').addEventListener('click', () => {
         root.classList.remove('show'); root.innerHTML = ''; window.scrollTo({ top: 0, behavior: 'smooth' });
