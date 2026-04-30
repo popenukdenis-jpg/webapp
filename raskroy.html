@@ -271,6 +271,8 @@ td.act { width: 32px; text-align: center; }
 
 <div id="sheetsContainer" class="no-print"></div>
 
+<datalist id="kt-thicknesses-list"></datalist>
+
 <div class="add-nom no-print">
     <button class="btn" id="btnAddSheet">+ Додати номенклатуру</button>
 </div>
@@ -575,10 +577,11 @@ function sheetHtml(sh, idx) {
     return `<div class="nom-card" data-sid="${sh.id}">
         <div class="nom-head">
             <span class="caret" data-toggle title="${sh.collapsed ? 'Розгорнути' : 'Згорнути'}">${sh.collapsed ? '+' : '−'}</span>
-            <select class="name-input" data-thickness style="font-weight:600; flex: 1 1 240px; min-width: 240px;">
-                <option value="">— оберіть номенклатуру —</option>
-                ${KT_PLASMA_PRICES.map(p => `<option value="${p.t}" ${(+sh.thickness === p.t) ? 'selected' : ''}>Лист Сталевий ${p.t} мм</option>`).join('')}
-            </select>
+            <input type="text" list="kt-thicknesses-list" class="name-input" data-thickness
+                   placeholder="оберіть номенклатуру (введіть «4» для пошуку)"
+                   value="${sh.thickness ? 'Лист Сталевий ' + sh.thickness + ' мм' : ''}"
+                   autocomplete="off"
+                   style="font-weight:600; flex: 1 1 240px; min-width: 240px;">
             <div style="display:flex;align-items:center;gap:6px;">
                 <span style="font-size:12px;color:#6b7280;">Ширина різу</span>
                 <div style="position:relative;display:inline-block;">
@@ -629,7 +632,6 @@ function findSheet(el) {
 document.getElementById('sheetsContainer').addEventListener('change', e => {
     const t = e.target;
     const sh = findSheet(t); if (!sh) return;
-    if (t.matches('[data-thickness]')) { sh.thickness = parseFloat(t.value) || 0; save(); return; }
     if (t.matches('[data-size]')) {
         const v = t.value;
         if (v === 'custom') { sh.sheetW = sh.sheetW || 1500; sh.sheetH = sh.sheetH || 6000; }
@@ -641,6 +643,18 @@ document.getElementById('sheetsContainer').addEventListener('input', e => {
     const t = e.target;
     const sh = findSheet(t);
     if (!sh) return;
+    if (t.matches('[data-thickness]')) {
+        const m = t.value.match(/(\d+(?:[.,]\d+)?)\s*мм/);
+        if (m) {
+            const v = parseFloat(m[1].replace(',', '.'));
+            const found = KT_PLASMA_PRICES.find(p => p.t === v);
+            sh.thickness = found ? v : 0;
+        } else if (!t.value.trim()) {
+            sh.thickness = 0;
+        }
+        save();
+        return;
+    }
     if (t.matches('[data-kerf]')) { sh.kerf = parseInt(t.value, 10) || 0; save(); return; }
     if (t.matches('[data-custom-w]')) { const v = parseInt(t.value, 10) || 0; if (v > 0) { sh.sheetW = v; save(); } return; }
     if (t.matches('[data-custom-h]')) { const v = parseInt(t.value, 10) || 0; if (v > 0) { sh.sheetH = v; save(); } return; }
@@ -1388,6 +1402,9 @@ document.getElementById('btnCalcSheet').addEventListener('click', () => {
 });
 
 // === Init ===
+// Populate datalist for thickness search
+document.getElementById('kt-thicknesses-list').innerHTML = KT_PLASMA_PRICES.map(p => `<option value="Лист Сталевий ${p.t} мм"></option>`).join('');
+
 load();
 if (state.profiles.length === 0) state.profiles.push(newProfile('', 12000));
 if (state.sheets.length === 0) state.sheets.push(newSheet(1500, 6000));
