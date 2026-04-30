@@ -674,8 +674,7 @@ function renderBarSvg(b, num, barLen, kerf, profileName) {
     }
     svg += `</svg>`;
 
-    const tailLabel = b.tail <= 0 ? 'без остатка'
-        : (b.isRemnant ? `обрезок ${Math.round(b.tail)} мм → склад` : `остаток ${Math.round(b.tail)} мм`);
+    const tailLabel = b.tail <= 0 ? 'без остатка' : `остаток ${Math.round(b.tail)} мм`;
     const nameTxt = profileName ? ' ' + esc(profileName) : '';
     return `<div class="bar">
         <div class="bar-head">
