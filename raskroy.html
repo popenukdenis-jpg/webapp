@@ -1220,8 +1220,50 @@ function renderResultSheet(report) {
         </div>`;
     });
 
+    // Клиентский вид (листовой) — таблица деталей по номенклатурам, оформлено в стиле блоков
+    let cvHtml = `<div class="client-view">
+        <div class="print-header" style="display:block;">
+            <div class="meta">Замовлення: <b>${esc(state.orderSheet) || '—'}</b> · Дата: ${dateStr}</div>
+        </div>`;
+    report.results.forEach((entry, idx) => {
+        const p = entry.profile, r = entry.r;
+        const validPieces = p.pieces.filter(c => (c.w | 0) > 0 && (c.h | 0) > 0 && (c.qty | 0) > 0);
+        const totalQty = validPieces.reduce((s, c) => s + (c.qty | 0), 0);
+        const usedP = (r && !r.error && r.sheets && r.sheets.length > 0) ? ((entry.metrics.reduce((a,m)=>a+m.used,0)) / (r.sheets.length * r.sheetW * r.sheetH) * 100) : 0;
+        cvHtml += `<div class="cv-block">
+            <div class="cv-head">
+                <span class="title">${esc(p.name) || 'Номенклатура №' + (idx + 1)}${p.thickness ? ' · ' + p.thickness + ' мм' : ''}</span>
+                ${(r && !r.error) ? `<span class="badge">${r.sheets.length} ${pluralSheets(r.sheets.length)}</span>` : ''}
+                <span class="meta">${r.sheetW}×${r.sheetH} · ${totalQty} шт.</span>
+            </div>
+            <div class="cv-body">`;
+        if (r && !r.error) {
+            const soldArea = (entry.soldArea / 1e6).toFixed(2);
+            cvHtml += `<div class="summary">
+                <div class="stat"><div class="k">Листів</div><div class="v">${r.sheets.length}</div></div>
+                <div class="stat"><div class="k">Лист</div><div class="v">${r.sheetW}×${r.sheetH}</div></div>
+                <div class="stat good"><div class="k">У деталях</div><div class="v">${pct(usedP)}</div></div>
+                <div class="stat warn"><div class="k">Продано клієнту</div><div class="v">${soldArea} м²</div></div>
+                <div class="stat"><div class="k">Врізок</div><div class="v">${entry.pierces}</div></div>
+                <div class="stat"><div class="k">Довжина різу</div><div class="v">${(entry.cutLen/1000).toFixed(2)} м</div></div>
+                <div class="stat cost"><div class="k">Вартість різів</div><div class="v">${fmtMoney(entry.cost || 0)}</div></div>
+            </div>`;
+        }
+        cvHtml += `<table class="cv-tbl"><thead><tr><th>№</th><th>Ширина, мм</th><th>Довжина, мм</th><th>Кількість</th></tr></thead><tbody>`;
+        validPieces.forEach((c, i) => {
+            cvHtml += `<tr><td>${i + 1}</td><td>${c.w}</td><td>${c.h}</td><td>${c.qty}</td></tr>`;
+        });
+        cvHtml += `</tbody></table>
+            </div>
+        </div>`;
+    });
+    cvHtml += `<div class="cv-foot">ВСЬОГО: ${totalSheets} ${pluralSheets(totalSheets)} · продано ${(totalSoldArea/1e6).toFixed(2)} м² · Вартість різів: ${fmtMoney(totalCost)}</div>`;
+    cvHtml += `</div>`;
+    html += cvHtml;
+
     html += `<div class="footer-act no-print">
         <button class="btn primary" id="btnPrintWhSheet">🖨 Карта розкрою (склад)</button>
+        <button class="btn primary" id="btnPrintClSheet">🖨 Замовлення (клієнт)</button>
         <button class="btn ghost" id="btnHideSheet">Сховати</button>
     </div>`;
 
@@ -1236,7 +1278,13 @@ function renderResultSheet(report) {
         body.classList.toggle('hidden', hide);
         if (caret) caret.textContent = hide ? '+' : '−';
     });
-    document.getElementById('btnPrintWhSheet').addEventListener('click', () => { document.body.classList.remove('print-client'); window.print(); });
+    function printAsSheet(mode) {
+        document.body.classList.toggle('print-client', mode === 'client');
+        window.print();
+    }
+    window.addEventListener('afterprint', () => document.body.classList.remove('print-client'), { once: true });
+    document.getElementById('btnPrintWhSheet').addEventListener('click', () => printAsSheet('warehouse'));
+    document.getElementById('btnPrintClSheet').addEventListener('click', () => printAsSheet('client'));
     document.getElementById('btnHideSheet').addEventListener('click', () => { root.classList.remove('show'); root.innerHTML = ''; window.scrollTo({ top: 0, behavior: 'smooth' }); });
 }
 
