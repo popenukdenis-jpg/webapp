@@ -189,18 +189,16 @@ function buildHouse(L, W, H, R, OH) {
 
     const slopeGeo = new THREE.PlaneGeometry(L + 2 * OH, slopeLen);
 
-    // North slope (наклонён в сторону -Z, верхний край у конька)
+    // North slope: ridge along +Y top edge → world (z=0, y=H+R), eaves at bottom edge → (z=-halfW, y=H)
     const slopeN = new THREE.Mesh(slopeGeo, matRoof);
-    // Плоскость по умолчанию в XY; поворачиваем так, чтобы Y по высоте, наклон в Z
-    slopeN.rotation.x = -(Math.PI / 2 - angle);
-    // Центр ската: над срединой между коньком и нижним краем
+    slopeN.rotation.x = (Math.PI / 2 - angle);
     slopeN.position.set(0, H + R / 2, -halfW / 2);
     slopeN.castShadow = true; slopeN.receiveShadow = true;
     building.add(slopeN);
 
-    // South slope
+    // South slope: mirror
     const slopeS = new THREE.Mesh(slopeGeo, matRoof);
-    slopeS.rotation.x = (Math.PI / 2 - angle);
+    slopeS.rotation.x = -(Math.PI / 2 - angle);
     slopeS.position.set(0, H + R / 2, halfW / 2);
     slopeS.castShadow = true; slopeS.receiveShadow = true;
     building.add(slopeS);
@@ -214,21 +212,21 @@ function buildHouse(L, W, H, R, OH) {
     ridge.castShadow = true;
     building.add(ridge);
 
-    // Decorative rafters (стропила) видны под свесом
+    // Decorative rafters (стропила) видны под свесом — длинная ось по Y, как у PlaneGeometry
     const rafterCount = Math.max(2, Math.round(L / 1.2));
+    const rafterGeo = new THREE.BoxGeometry(0.08, slopeLen, 0.12);
     for (let i = 0; i <= rafterCount; i++) {
         const x = -L / 2 - OH + (L + 2 * OH) * (i / rafterCount);
-        // Левая нога
-        const r1 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, slopeLen), matBeam);
+        // North rafter (под северным скатом)
+        const r1 = new THREE.Mesh(rafterGeo, matBeam);
         r1.position.set(x, H + R / 2, -halfW / 2);
-        r1.rotation.x = -(Math.PI / 2 - angle);
-        // подопустить чуть ниже плоскости ската
-        r1.translateY(-0.07);
+        r1.rotation.x = (Math.PI / 2 - angle);
+        r1.translateY(-0.07); // чуть ниже плоскости ската
         building.add(r1);
-        // Правая нога
-        const r2 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, slopeLen), matBeam);
+        // South rafter
+        const r2 = new THREE.Mesh(rafterGeo, matBeam);
         r2.position.set(x, H + R / 2, halfW / 2);
-        r2.rotation.x = (Math.PI / 2 - angle);
+        r2.rotation.x = -(Math.PI / 2 - angle);
         r2.translateY(-0.07);
         building.add(r2);
     }
