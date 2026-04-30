@@ -85,11 +85,12 @@ td.act { width: 32px; text-align: center; }
     body { background: #fff; padding: 0; max-width: none; }
     .no-print, header { display: none !important; }
     #result { display: block !important; }
-    .bar { page-break-inside: avoid; }
-    .card, .result-block { box-shadow: none; border: none; padding: 0; margin-bottom: 8px; }
-    .result-head { background: #fff; border-bottom: 1px solid #111; padding: 4px 0; cursor: default; }
+    .bar { page-break-inside: avoid; break-inside: avoid; }
+    .card, .result-block { box-shadow: none; border: none; padding: 0; margin-bottom: 8px; page-break-inside: avoid; break-inside: avoid; }
+    .result-head { background: #fff; border-bottom: 1px solid #111; padding: 4px 0; cursor: default; page-break-after: avoid; break-after: avoid; }
     .result-head .caret { display: none; }
     .result-body, .result-body.hidden { display: block !important; padding: 4px 0; }
+    .summary { page-break-inside: avoid; break-inside: avoid; }
     h1 { font-size: 16px; }
     .stat { background: #fff; }
     .print-header { display: block !important; border-bottom: 2px solid #111; margin-bottom: 12px; padding-bottom: 6px; }
