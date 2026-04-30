@@ -189,7 +189,7 @@ const state = {
     result: null,
 };
 
-const STORAGE_KEY = 'raskroy.v2';
+const STORAGE_KEY = 'raskroy.v3';
 let nextProfId = 1;
 
 function newProfile(name = '', barLen = 12000) {
@@ -212,12 +212,17 @@ function load() {
             for (const p of state.profiles) if (p.id >= nextProfId) nextProfId = p.id + 1;
             return;
         }
-        // миграция со старой версии
+        // миграция со старых версий — переносим только профили и заказ, ширину реза/мин.остаток обнуляем
+        const v2 = JSON.parse(localStorage.getItem('raskroy.v2') || 'null');
+        if (v2 && Array.isArray(v2.profiles)) {
+            state.order = v2.order || '';
+            state.profiles = v2.profiles;
+            for (const p of state.profiles) if (p.id >= nextProfId) nextProfId = p.id + 1;
+            return;
+        }
         const old = JSON.parse(localStorage.getItem('raskroy.v1') || 'null');
         if (old) {
             state.order = old.order || '';
-            state.kerf = old.kerf ?? 0;
-            state.minRem = old.minRem ?? 0;
             state.profiles = [{
                 id: nextProfId++, name: old.profile || '', barLen: old.barLen || 12000,
                 collapsed: false, cuts: old.cuts || [],
