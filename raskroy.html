@@ -239,9 +239,13 @@ td.act { width: 32px; text-align: center; }
 <div class="card no-print">
     <h2>Замовлення</h2>
     <div class="row">
+        <div class="field" style="flex:1; min-width:240px;">
+            <label>Замовник</label>
+            <input type="text" id="fCustomer" placeholder="">
+        </div>
         <div class="field">
             <label>№ замовлення</label>
-            <input type="text" id="fOrder" placeholder="ЗМ-00123">
+            <input type="text" id="fOrder" placeholder="">
         </div>
         <div class="field">
             <label>Ширина різу (kerf), мм</label>
@@ -273,9 +277,13 @@ td.act { width: 32px; text-align: center; }
 <div class="card no-print">
     <h2>Замовлення (лист)</h2>
     <div class="row">
+        <div class="field" style="flex:1; min-width:240px;">
+            <label>Замовник</label>
+            <input type="text" id="fCustomerSheet" placeholder="">
+        </div>
         <div class="field">
             <label>№ замовлення</label>
-            <input type="text" id="fOrderSheet" placeholder="ЗМ-00123">
+            <input type="text" id="fOrderSheet" placeholder="">
         </div>
     </div>
     <div class="sub" style="margin-top:8px; font-size:12px;">Ціни плазмового різу автоматично за прайсом КТ-Сталь · підставляються з товщини листа. Ширина різу задаються для кожної номенклатури окремо.</div>
@@ -299,6 +307,7 @@ td.act { width: 32px; text-align: center; }
 // === Состояние ===
 const state = {
     activeTab: 'linear',
+    customer: '',
     order: '',
     kerf: 0,
     minRem: 0,
@@ -306,6 +315,7 @@ const state = {
     result: null,
 
     // Для листового раскроя
+    customerSheet: '',
     orderSheet: '',
     sheets: [],     // [{id, name, sheetW, sheetH, thickness, kerf, collapsed, pieces:[{w,h,qty}]}]
     resultSheet: null,
@@ -330,8 +340,8 @@ function sheetName(sh) {
 function save() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify({
         activeTab: state.activeTab,
-        order: state.order, kerf: state.kerf, minRem: state.minRem, profiles: state.profiles,
-        orderSheet: state.orderSheet, sheets: state.sheets,
+        customer: state.customer, order: state.order, kerf: state.kerf, minRem: state.minRem, profiles: state.profiles,
+        customerSheet: state.customerSheet, orderSheet: state.orderSheet, sheets: state.sheets,
     })); } catch (e) {}
 }
 function load() {
@@ -339,6 +349,7 @@ function load() {
         const s = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
         if (s) {
             state.activeTab = s.activeTab || 'linear';
+            state.customer = s.customer || '';
             state.order = s.order || '';
             state.kerf = s.kerf ?? 0;
             state.minRem = s.minRem ?? 0;
@@ -346,6 +357,7 @@ function load() {
                 state.profiles = s.profiles;
                 for (const p of state.profiles) if (p.id >= nextProfId) nextProfId = p.id + 1;
             }
+            state.customerSheet = s.customerSheet || '';
             state.orderSheet = s.orderSheet || '';
             if (Array.isArray(s.sheets)) {
                 state.sheets = s.sheets;
@@ -566,10 +578,12 @@ document.getElementById('profilesContainer').addEventListener('click', e => {
 });
 
 // === Параметры заказа ===
+const fCustomer = document.getElementById('fCustomer');
 const fOrder = document.getElementById('fOrder');
 const fKerf = document.getElementById('fKerf');
 const fMinRem = document.getElementById('fMinRem');
 
+fCustomer.addEventListener('input', () => { state.customer = fCustomer.value; save(); });
 fOrder.addEventListener('input', () => { state.order = fOrder.value; save(); });
 fKerf.addEventListener('input', () => { state.kerf = parseFloat(fKerf.value) || 0; save(); });
 fMinRem.addEventListener('input', () => { state.minRem = parseInt(fMinRem.value, 10) || 0; save(); });
@@ -580,7 +594,9 @@ document.getElementById('btnAddProfile').addEventListener('click', () => {
 });
 
 function applyStateToUI() {
+    fCustomer.value = state.customer || '';
     fOrder.value = state.order || '';
+    fCustomerSheet.value = state.customerSheet || '';
     fKerf.value = state.kerf || '';
     fMinRem.value = state.minRem || '';
 
@@ -599,8 +615,10 @@ document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () =>
 }));
 
 // === Параметры заказа: листовой раскрой ===
+const fCustomerSheet = document.getElementById('fCustomerSheet');
 const fOrderSheet = document.getElementById('fOrderSheet');
 
+fCustomerSheet.addEventListener('input', () => { state.customerSheet = fCustomerSheet.value; save(); });
 fOrderSheet.addEventListener('input', () => { state.orderSheet = fOrderSheet.value; save(); });
 
 // === Рендер блоков листов ===
@@ -1007,7 +1025,7 @@ function renderResult(report) {
 
     let html = '';
     html += `<div class="print-header wh-print-header">
-        <div class="meta">Замовлення: <b>${esc(state.order) || '—'}</b> · Дата: ${dateStr}</div>
+        <div class="meta">Замовник: <b>${esc(state.customer) || '—'}</b> · Замовлення: <b>${esc(state.order) || '—'}</b> · Дата: ${dateStr}</div>
     </div>`;
 
     // Предварительно посчитаем резы и стоимость для каждого блока
@@ -1097,7 +1115,7 @@ function renderResult(report) {
     // Клиентская сводка — оформлена под стиль складских блоков
     let cvHtml = `<div class="client-view">
         <div class="print-header" style="display:block;">
-            <div class="meta">Замовлення: <b>${esc(state.order) || '—'}</b> · Дата: ${dateStr}</div>
+            <div class="meta">Замовник: <b>${esc(state.customer) || '—'}</b> · Замовлення: <b>${esc(state.order) || '—'}</b> · Дата: ${dateStr}</div>
         </div>`;
     report.results.forEach((entry, idx) => {
         const p = entry.profile, r = entry.r;
@@ -1407,7 +1425,7 @@ function renderResultSheet(report) {
 
     let html = '';
     html += `<div class="print-header wh-print-header">
-        <div class="meta">Замовлення: <b>${esc(state.orderSheet) || '—'}</b> · Дата: ${dateStr}</div>
+        <div class="meta">Замовник: <b>${esc(state.customerSheet) || '—'}</b> · Замовлення: <b>${esc(state.orderSheet) || '—'}</b> · Дата: ${dateStr}</div>
     </div>`;
 
     html += `<div class="card order-summary"><h2 class="no-print">Зведення по замовленню</h2>
@@ -1475,7 +1493,7 @@ function renderResultSheet(report) {
     // Клиентский вид (листовой) — таблица деталей по номенклатурам, оформлено в стиле блоков
     let cvHtml = `<div class="client-view">
         <div class="print-header" style="display:block;">
-            <div class="meta">Замовлення: <b>${esc(state.orderSheet) || '—'}</b> · Дата: ${dateStr}</div>
+            <div class="meta">Замовник: <b>${esc(state.customerSheet) || '—'}</b> · Замовлення: <b>${esc(state.orderSheet) || '—'}</b> · Дата: ${dateStr}</div>
         </div>`;
     report.results.forEach((entry, idx) => {
         const p = entry.profile, r = entry.r;
