@@ -95,11 +95,18 @@ td.act { width: 32px; text-align: center; }
     .stat { background: #fff; }
     .print-header { display: block !important; border-bottom: 2px solid #111; margin-bottom: 12px; padding-bottom: 6px; }
 
-    /* Режим «для клиента»: только сводка-заказ, скрываем карту реза */
-    body.print-client .result-block, body.print-client #result > .card { display: none !important; }
-    body.print-client .client-view { display: block !important; }
-    /* Режим «для склада»: скрываем клиентскую сводку */
+    /* Режим «для склада»: показываем только хлысты, прячем общую сводку и клиентскую */
+    body:not(.print-client) .order-summary,
+    body:not(.print-client) .client-view,
+    body:not(.print-client) .wh-print-header { /* wh-print-header reserved */ }
+    body:not(.print-client) .order-summary { display: none !important; }
     body:not(.print-client) .client-view { display: none !important; }
+
+    /* Режим «для клиента»: общая сводка по заказу + клиентская табличка, без карты реза */
+    body.print-client .result-block { display: none !important; }
+    body.print-client .order-summary { display: block !important; }
+    body.print-client .client-view { display: block !important; }
+    body.print-client .wh-print-header { display: none !important; }
 }
 .print-header { display: none; }
 .print-header h1 { margin-bottom: 2px; }
@@ -151,11 +158,11 @@ td.act { width: 32px; text-align: center; }
         </div>
         <div class="field">
             <label>Ширина реза (kerf), мм</label>
-            <input type="number" id="fKerf" min="0" step="0.5" value="3">
+            <input type="number" id="fKerf" min="0" step="0.5" placeholder="0">
         </div>
         <div class="field">
             <label>Мин. деловой обрезок, мм</label>
-            <input type="number" id="fMinRem" min="0" step="10" value="300">
+            <input type="number" id="fMinRem" min="0" step="10" placeholder="0">
         </div>
     </div>
 </div>
@@ -176,8 +183,8 @@ td.act { width: 32px; text-align: center; }
 // === Состояние ===
 const state = {
     order: '',
-    kerf: 3,
-    minRem: 300,
+    kerf: 0,
+    minRem: 0,
     profiles: [],   // [{id, name, barLen, collapsed, cuts:[{length,qty}]}]
     result: null,
 };
@@ -199,8 +206,8 @@ function load() {
         const s = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
         if (s && Array.isArray(s.profiles)) {
             state.order = s.order || '';
-            state.kerf = s.kerf ?? 3;
-            state.minRem = s.minRem ?? 300;
+            state.kerf = s.kerf ?? 0;
+            state.minRem = s.minRem ?? 0;
             state.profiles = s.profiles;
             for (const p of state.profiles) if (p.id >= nextProfId) nextProfId = p.id + 1;
             return;
@@ -209,8 +216,8 @@ function load() {
         const old = JSON.parse(localStorage.getItem('raskroy.v1') || 'null');
         if (old) {
             state.order = old.order || '';
-            state.kerf = old.kerf ?? 3;
-            state.minRem = old.minRem ?? 300;
+            state.kerf = old.kerf ?? 0;
+            state.minRem = old.minRem ?? 0;
             state.profiles = [{
                 id: nextProfId++, name: old.profile || '', barLen: old.barLen || 12000,
                 collapsed: false, cuts: old.cuts || [],
@@ -342,8 +349,8 @@ document.getElementById('btnAddProfile').addEventListener('click', () => {
 
 function applyStateToUI() {
     fOrder.value = state.order || '';
-    fKerf.value = state.kerf;
-    fMinRem.value = state.minRem;
+    fKerf.value = state.kerf || '';
+    fMinRem.value = state.minRem || '';
 }
 
 // === Оптимизатор ===
@@ -436,7 +443,7 @@ function renderResult(report) {
     const dateStr = new Date().toLocaleDateString('ru-RU');
 
     let html = '';
-    html += `<div class="print-header">
+    html += `<div class="print-header wh-print-header">
         <h1>Карта раскроя</h1>
         <div class="meta">Заказ: <b>${esc(state.order) || '—'}</b> · Дата: ${dateStr}</div>
     </div>`;
@@ -464,7 +471,7 @@ function renderResult(report) {
     const usedPct = totalLen > 0 ? (totalCutsLen / totalLen * 100) : 0;
     const wastePct = totalLen > 0 ? (totalWaste / totalLen * 100) : 0;
 
-    html += `<div class="card"><h2 class="no-print">Сводка по заказу</h2>
+    html += `<div class="card order-summary"><h2 class="no-print">Сводка по заказу</h2>
         <div class="summary">
             <div class="stat"><div class="k">Номенклатур</div><div class="v">${report.results.length}</div></div>
             <div class="stat"><div class="k">Хлыстов всего</div><div class="v">${totalBars}</div></div>
