@@ -407,10 +407,10 @@ function esc(s) { return String(s ?? '').replace(/[<>&"']/g, c => ({'<':'&lt;','
 function fmtMm(mm) { return mm >= 1000 ? (mm / 1000).toFixed(2).replace(/\.?0+$/, '') + ' м' : Math.round(mm) + ' мм'; }
 function pct(p) { return p.toFixed(1) + '%'; }
 function fmtMoney(v) {
-    if (!v) return '0 ₽';
+    if (!v) return '0 грн';
     const r = Math.round(v * 100) / 100;
     const s = r.toFixed(r % 1 === 0 ? 0 : 2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-    return s + ' ₽';
+    return s + ' грн';
 }
 
 // === Рендер результата ===
@@ -492,7 +492,7 @@ function renderResult(report) {
             <div class="stat good"><div class="k">В деталях</div><div class="v">${pct(usedP)}</div></div>
             <div class="stat warn"><div class="k">Обрезки</div><div class="v">${fmtMm(r.totalRemnant)}</div></div>
             <div class="stat"><div class="k">Резов</div><div class="v">${sawCuts}</div></div>
-            <div class="stat"><div class="k">Цена реза, ₽</div><div class="v"><input class="price-input" type="number" min="0" step="0.5" value="${price || ''}" data-price="${p.id}" placeholder="0"></div></div>
+            <div class="stat"><div class="k">Цена реза, грн</div><div class="v"><input class="price-input" type="number" min="0" step="0.5" value="${price || ''}" data-price="${p.id}" placeholder="0"></div></div>
             <div class="stat cost"><div class="k">Стоимость резов</div><div class="v" data-cost="${p.id}">${fmtMoney(cost)}</div></div>
         </div>`;
         r.bars.forEach((b, i) => { bodyHtml += renderBarSvg(b, i + 1, r.barLen, r.kerf, p.name); });
@@ -626,14 +626,14 @@ function exportCsv(report) {
         rows.push(['Деловых обрезков, мм', r.totalRemnant]);
         rows.push(['Остатков (с резом), мм', r.totalWaste]);
         rows.push(['Резов, шт', entry.sawCuts || 0]);
-        rows.push(['Цена реза, ₽', p.cutPrice || 0]);
-        rows.push(['Стоимость резов, ₽', entry.cost || 0]);
+        rows.push(['Цена реза, грн', p.cutPrice || 0]);
+        rows.push(['Стоимость резов, грн', entry.cost || 0]);
         rows.push([]);
     });
     const grandCost = report.results.reduce((s, x) => s + (x.cost || 0), 0);
     const grandSaw = report.results.reduce((s, x) => s + (x.sawCuts || 0), 0);
     rows.push(['ИТОГО резов по заказу, шт', grandSaw]);
-    rows.push(['ИТОГО стоимость резов, ₽', grandCost]);
+    rows.push(['ИТОГО стоимость резов, грн', grandCost]);
     const csv = rows.map(row => row.map(v => {
         const s = String(v ?? '');
         return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
