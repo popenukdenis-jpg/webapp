@@ -1034,17 +1034,20 @@ function optimize(cuts, barLen, kerf, minRem) {
         const cutsLen = placed.reduce((s, it) => s + it.len, 0);
         const kerfTot = Math.max(0, placed.length - 1) * kerf;
         const tail = Math.max(0, barLen - cutsLen - kerfTot);
-        bars.push({ cuts: placed, usedLen: cutsLen, kerfTotal: kerfTot, tail, isRemnant: tail >= minRem });
+        let stockable = Math.floor(tail / 1000) * 1000;
+        if (stockable < minRem) stockable = 0;
+        const waste = tail - stockable;
+        bars.push({ cuts: placed, usedLen: cutsLen, kerfTotal: kerfTot, tail, stockable, waste, isRemnant: stockable > 0 });
         remaining = remaining.filter((_, idx) => !placedSet.has(idx));
     }
 
     const totalBarsLen = bars.length * barLen;
     const totalCutsLen = bars.reduce((s, b) => s + b.usedLen, 0);
     const totalKerf = bars.reduce((s, b) => s + b.kerfTotal, 0);
-    const totalRemnant = bars.filter(b => b.isRemnant).reduce((s, b) => s + b.tail, 0);
-    const totalWaste = bars.filter(b => !b.isRemnant).reduce((s, b) => s + b.tail, 0) + totalKerf;
+    const totalStockable = bars.reduce((s, b) => s + b.stockable, 0);
+    const totalWaste = bars.reduce((s, b) => s + b.waste, 0) + totalKerf;
 
-    return { bars, unplaced, totalBarsLen, totalCutsLen, totalKerf, totalRemnant, totalWaste, barLen, kerf, minRem };
+    return { bars, unplaced, totalBarsLen, totalCutsLen, totalKerf, totalStockable, totalWaste, barLen, kerf, minRem };
 }
 
 // === Утилиты ===
@@ -1086,7 +1089,7 @@ function renderResult(report) {
     const totalLen = report.results.reduce((s, x) => s + (x.r.totalBarsLen || 0), 0);
     const totalCutsLen = report.results.reduce((s, x) => s + (x.r.totalCutsLen || 0), 0);
     const totalWaste = report.results.reduce((s, x) => s + (x.r.totalWaste || 0), 0);
-    const totalRem = report.results.reduce((s, x) => s + (x.r.totalRemnant || 0), 0);
+    const totalRem = report.results.reduce((s, x) => s + (x.r.totalStockable || 0), 0);
     const totalSawCuts = report.results.reduce((s, x) => s + (x.sawCuts || 0), 0);
     const totalCost = report.results.reduce((s, x) => s + (x.cost || 0), 0);
     const usedPct = totalLen > 0 ? (totalCutsLen / totalLen * 100) : 0;
@@ -1098,7 +1101,7 @@ function renderResult(report) {
             <div class="stat"><div class="k">Хлистів всього</div><div class="v">${totalBars}</div></div>
             <div class="stat"><div class="k">Довжина металу</div><div class="v">${fmtMm(totalLen)}</div></div>
             <div class="stat good"><div class="k">У деталях</div><div class="v">${pct(usedPct)}</div></div>
-            <div class="stat warn"><div class="k">Залишок</div><div class="v">${fmtMm(totalRem)}</div></div>
+            <div class="stat warn"><div class="k">Складський залишок</div><div class="v">${fmtMm(totalRem)}</div></div>
             <div class="stat"><div class="k">Різів всього</div><div class="v" data-total-saw>${totalSawCuts}</div></div>
             <div class="stat cost"><div class="k">Вартість різів</div><div class="v" data-total-cost>${fmtMoney(totalCost)}</div></div>
         </div>
@@ -1133,7 +1136,7 @@ function renderResult(report) {
             <div class="stat"><div class="k">Хлистів</div><div class="v">${r.bars.length}</div></div>
             <div class="stat"><div class="k">Заготовка</div><div class="v">${fmtMm(r.barLen)}</div></div>
             <div class="stat good"><div class="k">У деталях</div><div class="v">${pct(usedP)}</div></div>
-            <div class="stat warn"><div class="k">Залишок</div><div class="v">${fmtMm(r.totalRemnant)}</div></div>
+            <div class="stat warn"><div class="k">Складський залишок</div><div class="v">${fmtMm(r.totalStockable)}</div></div>
             <div class="stat"><div class="k">Різів</div><div class="v">${sawCuts}</div></div>
             <div class="stat no-wh-print"><div class="k">Ціна різу, грн</div><div class="v"><input class="price-input" type="number" min="0" step="0.5" value="${price || ''}" data-price="${p.id}" placeholder="0"></div></div>
             <div class="stat cost no-wh-print"><div class="k">Вартість різів</div><div class="v" data-cost="${p.id}">${fmtMoney(cost)}</div></div>
@@ -1271,14 +1274,23 @@ function renderBarSvg(b, num, barLen, kerf, profileName) {
             x += kw;
         }
     });
-    if (b.tail > 0) {
-        const tw = b.tail * scale;
-        svg += `<rect class="${b.isRemnant ? 'tail-rem' : 'tail-waste'}" x="${x.toFixed(2)}" y="2" width="${tw.toFixed(2)}" height="${H - 4}"/>`;
-        if (tw > 32) svg += `<text x="${(x + tw / 2).toFixed(2)}" y="${(H / 2).toFixed(2)}" text-anchor="middle" dominant-baseline="central">${Math.round(b.tail)}</text>`;
+    if (b.stockable > 0) {
+        const sw = b.stockable * scale;
+        svg += `<rect class="tail-rem" x="${x.toFixed(2)}" y="2" width="${sw.toFixed(2)}" height="${H - 4}"/>`;
+        if (sw > 32) svg += `<text x="${(x + sw / 2).toFixed(2)}" y="${(H / 2).toFixed(2)}" text-anchor="middle" dominant-baseline="central">${Math.round(b.stockable)}</text>`;
+        x += sw;
+    }
+    if (b.waste > 0) {
+        const ww = b.waste * scale;
+        svg += `<rect class="tail-waste" x="${x.toFixed(2)}" y="2" width="${ww.toFixed(2)}" height="${H - 4}"/>`;
+        if (ww > 32) svg += `<text x="${(x + ww / 2).toFixed(2)}" y="${(H / 2).toFixed(2)}" text-anchor="middle" dominant-baseline="central">${Math.round(b.waste)}</text>`;
     }
     svg += `</svg>`;
 
-    const tailLabel = b.tail <= 0 ? 'без залишку' : `залишок ${Math.round(b.tail)} мм`;
+    const parts = [];
+    if (b.stockable > 0) parts.push(`складський залишок ${Math.round(b.stockable)} мм`);
+    if (b.waste > 0) parts.push(`залишок ${Math.round(b.waste)} мм`);
+    const tailLabel = parts.length ? parts.join(' · ') : 'без залишку';
     const nameTxt = profileName ? ' ' + esc(profileName) : '';
     return `<div class="bar">
         <div class="bar-head">
