@@ -467,7 +467,12 @@ function renderResult(report) {
             return;
         }
         const usedP = r.totalBarsLen > 0 ? (r.totalCutsLen / r.totalBarsLen * 100) : 0;
-        const sawCuts = r.bars.reduce((s, b) => s + (b.cuts.length === 0 ? 0 : (b.tail > 0 ? b.cuts.length : b.cuts.length - 1)), 0);
+        // Резы на хлыст: 1 торцовка в начале + (n-1) резов между деталями + 1 рез на отделение остатка/обрезка (если есть)
+        const sawCuts = r.bars.reduce((s, b) => {
+            const n = b.cuts.length;
+            if (n === 0) return s;
+            return s + 1 + (n - 1) + (b.tail > 0 ? 1 : 0);
+        }, 0);
         let bodyHtml = `<div class="summary">
             <div class="stat"><div class="k">Хлыстов</div><div class="v">${r.bars.length}</div></div>
             <div class="stat"><div class="k">Заготовка</div><div class="v">${fmtMm(r.barLen)}</div></div>
