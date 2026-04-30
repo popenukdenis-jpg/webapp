@@ -561,7 +561,7 @@ function sheetHtml(sh, idx) {
     return `<div class="nom-card" data-sid="${sh.id}">
         <div class="nom-head">
             <span class="caret" data-toggle title="${sh.collapsed ? 'Розгорнути' : 'Згорнути'}">${sh.collapsed ? '+' : '−'}</span>
-            <select class="name-input" data-thickness style="font-weight:600; flex: 0 1 320px; min-width: 240px; max-width: 340px;">
+            <select class="name-input" data-thickness style="font-weight:600; flex: 1 1 240px; min-width: 240px;">
                 <option value="">— оберіть номенклатуру —</option>
                 ${KT_PLASMA_PRICES.map(p => `<option value="${p.t}" ${(+sh.thickness === p.t) ? 'selected' : ''}>Лист Сталевий ${p.t} мм</option>`).join('')}
             </select>
