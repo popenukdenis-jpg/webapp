@@ -201,6 +201,9 @@ td.act { width: 32px; text-align: center; }
 .size-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; align-items: end; }
 .size-grid label { font-size: 12px; color: #6b7280; }
 .piece-tbl th:nth-child(2), .piece-tbl th:nth-child(3), .piece-tbl th:nth-child(4) { width: 25%; }
+.piece-tbl th { text-align: center; }
+.piece-tbl td.num input { text-align: center; }
+.piece-tbl td:first-child { text-align: center; }
 .sheet-svg { display: block; background: #fff; border: 1px solid #555; max-width: 100%; max-height: 50vh; width: auto; height: auto; margin: 0 auto; }
 @media print {
     .sheet-svg { max-height: 80vh; }
@@ -262,12 +265,8 @@ td.act { width: 32px; text-align: center; }
             <label>№ замовлення</label>
             <input type="text" id="fOrderSheet" placeholder="ЗМ-00123">
         </div>
-        <div class="field">
-            <label>Ширина різу (kerf), мм</label>
-            <input type="number" id="fKerfSheet" min="0" step="0.5" placeholder="0">
-        </div>
     </div>
-    <div class="sub" style="margin-top:8px; font-size:12px;">Ціни плазмового різу автоматично за прайсом КТ-Сталь · підставляються з товщини листа</div>
+    <div class="sub" style="margin-top:8px; font-size:12px;">Ціни плазмового різу автоматично за прайсом КТ-Сталь · підставляються з товщини листа. Ширина різу задаються для кожної номенклатури окремо.</div>
 </div>
 
 <div id="sheetsContainer" class="no-print"></div>
@@ -296,8 +295,7 @@ const state = {
 
     // Для листового раскроя
     orderSheet: '',
-    kerfSheet: 0,
-    sheets: [],     // [{id, name, sheetW, sheetH, thickness, collapsed, pieces:[{w,h,qty}]}]
+    sheets: [],     // [{id, name, sheetW, sheetH, thickness, kerf, collapsed, pieces:[{w,h,qty}]}]
     resultSheet: null,
 };
 
@@ -310,14 +308,14 @@ function newProfile(name = '', barLen = 12000) {
 }
 
 function newSheet(name = '', sheetW = 1500, sheetH = 6000, thickness = 0) {
-    return { id: nextSheetId++, name, sheetW, sheetH, thickness, collapsed: false, pieces: [{ w: 0, h: 0, qty: 0 }] };
+    return { id: nextSheetId++, name, sheetW, sheetH, thickness, kerf: 0, collapsed: false, pieces: [{ w: 0, h: 0, qty: 0 }] };
 }
 
 function save() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify({
         activeTab: state.activeTab,
         order: state.order, kerf: state.kerf, minRem: state.minRem, profiles: state.profiles,
-        orderSheet: state.orderSheet, kerfSheet: state.kerfSheet, sheets: state.sheets,
+        orderSheet: state.orderSheet, sheets: state.sheets,
     })); } catch (e) {}
 }
 function load() {
@@ -333,7 +331,6 @@ function load() {
                 for (const p of state.profiles) if (p.id >= nextProfId) nextProfId = p.id + 1;
             }
             state.orderSheet = s.orderSheet || '';
-            state.kerfSheet = s.kerfSheet ?? 0;
             if (Array.isArray(s.sheets)) {
                 state.sheets = s.sheets;
                 for (const sh of state.sheets) if (sh.id >= nextSheetId) nextSheetId = sh.id + 1;
@@ -494,7 +491,6 @@ function applyStateToUI() {
     fMinRem.value = state.minRem || '';
 
     fOrderSheet.value = state.orderSheet || '';
-    fKerfSheet.value = state.kerfSheet || '';
 
     // Активная вкладка
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === state.activeTab));
@@ -510,10 +506,8 @@ document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () =>
 
 // === Параметры заказа: листовой раскрой ===
 const fOrderSheet = document.getElementById('fOrderSheet');
-const fKerfSheet = document.getElementById('fKerfSheet');
 
 fOrderSheet.addEventListener('input', () => { state.orderSheet = fOrderSheet.value; save(); });
-fKerfSheet.addEventListener('input', () => { state.kerfSheet = parseFloat(fKerfSheet.value) || 0; save(); });
 
 // === Рендер блоков листов ===
 const STD_SHEETS = [
@@ -543,9 +537,10 @@ function ktPriceFor(t) { return KT_PLASMA_PRICES.find(x => x.t === +t); }
 
 function sheetHtml(sh, idx) {
     const isStd = STD_SHEETS.some(s => s.w === sh.sheetW && s.h === sh.sheetH);
-    const sizeButtons = STD_SHEETS.map(s =>
-        `<button data-size="${s.w}x${s.h}" class="${(sh.sheetW === s.w && sh.sheetH === s.h) ? 'active' : ''}">${s.w}×${s.h}</button>`
-    ).join('') + `<button data-size="custom" class="${!isStd ? 'active' : ''}">інший</button>`;
+    const currentKey = isStd ? `${sh.sheetW}x${sh.sheetH}` : 'custom';
+    const sizeOptions = STD_SHEETS.map(s =>
+        `<option value="${s.w}x${s.h}" ${currentKey === `${s.w}x${s.h}` ? 'selected' : ''}>${s.w}×${s.h}</option>`
+    ).join('') + `<option value="custom" ${!isStd ? 'selected' : ''}>інший</option>`;
 
     const rows = sh.pieces.map((c, i) => `
         <tr>
@@ -570,9 +565,16 @@ function sheetHtml(sh, idx) {
                     ${KT_PLASMA_PRICES.map(p => `<option value="${p.t}" ${(+sh.thickness === p.t) ? 'selected' : ''}>${p.t} мм</option>`).join('')}
                 </select>
             </div>
-            <span class="nom-meta">${totalQty ? totalQty + ' шт.' : '—'}</span>
-            <div class="toggle" data-size-toggle>${sizeButtons}</div>
+            <div style="display:flex;align-items:center;gap:6px;">
+                <span style="font-size:12px;color:#6b7280;">Різ</span>
+                <input type="number" min="0" step="0.5" value="${sh.kerf || ''}" data-kerf placeholder="мм" style="width:70px;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:16px;">
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+                <span style="font-size:12px;color:#6b7280;">Лист</span>
+                <select data-size style="padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:16px;font-family:inherit;background:#fff;">${sizeOptions}</select>
+            </div>
             ${!isStd ? `<div style="display:flex;gap:4px;align-items:center;"><input type="number" min="100" step="10" value="${sh.sheetW}" data-custom-w style="width:80px;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;"><span style="color:#9ca3af;">×</span><input type="number" min="100" step="10" value="${sh.sheetH}" data-custom-h style="width:80px;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;"></div>` : ''}
+            <span class="nom-meta">${totalQty ? totalQty + ' шт.' : '—'}</span>
             <button class="nom-del" data-del-sheet title="Видалити номенклатуру">✕</button>
         </div>
         <div class="nom-body ${sh.collapsed ? 'hidden' : ''}">
@@ -609,15 +611,21 @@ function findSheet(el) {
 
 document.getElementById('sheetsContainer').addEventListener('change', e => {
     const t = e.target;
-    if (!t.matches('[data-thickness]')) return;
     const sh = findSheet(t); if (!sh) return;
-    sh.thickness = parseFloat(t.value) || 0; save();
+    if (t.matches('[data-thickness]')) { sh.thickness = parseFloat(t.value) || 0; save(); return; }
+    if (t.matches('[data-size]')) {
+        const v = t.value;
+        if (v === 'custom') { /* keep current */ }
+        else { const [w, h] = v.split('x').map(Number); sh.sheetW = w; sh.sheetH = h; }
+        renderSheets(); save();
+    }
 });
 document.getElementById('sheetsContainer').addEventListener('input', e => {
     const t = e.target;
     const sh = findSheet(t);
     if (!sh) return;
     if (t.matches('[data-name]')) { sh.name = t.value; save(); return; }
+    if (t.matches('[data-kerf]')) { sh.kerf = parseFloat(t.value) || 0; save(); return; }
     if (t.matches('[data-custom-w]')) { const v = parseInt(t.value, 10) || 0; if (v > 0) { sh.sheetW = v; save(); } return; }
     if (t.matches('[data-custom-h]')) { const v = parseInt(t.value, 10) || 0; if (v > 0) { sh.sheetH = v; save(); } return; }
     if (t.matches('[data-pi]')) {
@@ -642,13 +650,6 @@ document.getElementById('sheetsContainer').addEventListener('click', e => {
             renderSheets(); save();
         }
         return;
-    }
-    const sizeBtn = t.closest('[data-size-toggle] button');
-    if (sizeBtn) {
-        const v = sizeBtn.dataset.size;
-        if (v === 'custom') { /* keep current */ }
-        else { const [w, h] = v.split('x').map(Number); sh.sheetW = w; sh.sheetH = h; }
-        renderSheets(); save(); return;
     }
     const delPiece = t.closest('[data-del-piece]');
     if (delPiece) { sh.pieces.splice(+delPiece.dataset.delPiece, 1); renderSheets(); save(); return; }
@@ -1305,7 +1306,7 @@ document.getElementById('btnCalcSheet').addEventListener('click', () => {
     const results = state.sheets.map(s => ({
         profile: s,
         r: (s.sheetW > 0 && s.sheetH > 0)
-            ? pack2dShelf(s.pieces, s.sheetW, s.sheetH, state.kerfSheet)
+            ? pack2dShelf(s.pieces, s.sheetW, s.sheetH, s.kerf || 0)
             : { error: 'Не задано розмір листа', sheets: [] },
     }));
     state.resultSheet = { results };
