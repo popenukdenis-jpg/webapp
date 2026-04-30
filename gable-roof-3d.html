@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Двускатная крыша — 3D модель</title>
+<style>
+    html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: system-ui, sans-serif; background: #1a1a2e; }
+    #canvas { display: block; }
+    #ui {
+        position: absolute; top: 12px; left: 12px;
+        background: rgba(20, 20, 35, 0.85); color: #eee;
+        padding: 14px 16px; border-radius: 8px;
+        font-size: 13px; min-width: 240px;
+        box-shadow: 0 4px 18px rgba(0,0,0,0.4);
+    }
+    #ui h2 { margin: 0 0 10px 0; font-size: 15px; color: #6ec1ff; }
+    #ui label { display: flex; justify-content: space-between; align-items: center; margin: 8px 0; gap: 10px; }
+    #ui input[type=range] { flex: 1; }
+    #ui .val { min-width: 48px; text-align: right; color: #ffd479; font-variant-numeric: tabular-nums; }
+    #ui .row { display: flex; gap: 8px; margin-top: 10px; }
+    #ui button {
+        flex: 1; padding: 6px 10px; cursor: pointer;
+        background: #2a2a4a; color: #eee; border: 1px solid #444;
+        border-radius: 4px; font-size: 12px;
+    }
+    #ui button:hover { background: #3a3a5a; }
+    #hint { position: absolute; bottom: 10px; left: 12px; color: #888; font-size: 12px; }
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+
+<div id="ui">
+    <h2>Двускатная крыша</h2>
+    <label>Длина дома <span class="val" id="vLen">8.0 м</span></label>
+    <input type="range" id="rLen" min="4" max="14" step="0.5" value="8">
+
+    <label>Ширина дома <span class="val" id="vWid">6.0 м</span></label>
+    <input type="range" id="rWid" min="3" max="10" step="0.5" value="6">
+
+    <label>Высота стен <span class="val" id="vWall">3.0 м</span></label>
+    <input type="range" id="rWall" min="2" max="5" step="0.25" value="3">
+
+    <label>Высота конька <span class="val" id="vRidge">2.5 м</span></label>
+    <input type="range" id="rRidge" min="0.5" max="5" step="0.25" value="2.5">
+
+    <label>Свес крыши <span class="val" id="vOH">0.5 м</span></label>
+    <input type="range" id="rOH" min="0" max="1.5" step="0.1" value="0.5">
+
+    <div class="row">
+        <button id="bWire">Каркас</button>
+        <button id="bReset">Сброс вида</button>
+    </div>
+</div>
+
+<div id="hint">Мышь: вращение · Колесо: зум · Правый клик: панорама</div>
+
+<script type="importmap">
+{
+    "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const canvas = document.getElementById('canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1a1a2e);
+scene.fog = new THREE.Fog(0x1a1a2e, 30, 80);
+
+const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 200);
+const initialCamPos = new THREE.Vector3(14, 10, 16);
+camera.position.copy(initialCamPos);
+
+const controls = new OrbitControls(camera, canvas);
+controls.target.set(0, 2.5, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+
+// Lights
+scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+const sun = new THREE.DirectionalLight(0xffffff, 1.1);
+sun.position.set(10, 18, 8);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -20;
+sun.shadow.camera.right = 20;
+sun.shadow.camera.top = 20;
+sun.shadow.camera.bottom = -20;
+sun.shadow.camera.near = 0.5;
+sun.shadow.camera.far = 60;
+scene.add(sun);
+const fill = new THREE.HemisphereLight(0x88aaff, 0x223322, 0.4);
+scene.add(fill);
+
+// Ground
+const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(80, 80),
+    new THREE.MeshStandardMaterial({ color: 0x3a5a3a, roughness: 1 })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// Grid
+const grid = new THREE.GridHelper(80, 80, 0x224422, 0x2a4a2a);
+grid.position.y = 0.01;
+scene.add(grid);
+
+// Materials
+const matWall   = new THREE.MeshStandardMaterial({ color: 0xe8d9b5, roughness: 0.85 });
+const matRoof   = new THREE.MeshStandardMaterial({ color: 0x9a3a2a, roughness: 0.6, side: THREE.DoubleSide });
+const matGable  = new THREE.MeshStandardMaterial({ color: 0xd9c8a0, roughness: 0.85, side: THREE.DoubleSide });
+const matRidge  = new THREE.MeshStandardMaterial({ color: 0x5a1f15, roughness: 0.5 });
+const matBeam   = new THREE.MeshStandardMaterial({ color: 0x6b4a2a, roughness: 0.9 });
+const matDoor   = new THREE.MeshStandardMaterial({ color: 0x4a2a1a, roughness: 0.7 });
+const matWindow = new THREE.MeshStandardMaterial({ color: 0x6ec1ff, roughness: 0.2, metalness: 0.3, emissive: 0x113355, emissiveIntensity: 0.3 });
+
+// Building group (rebuilt on parameter change)
+let building = new THREE.Group();
+scene.add(building);
+let wireMode = false;
+
+function buildHouse(L, W, H, R, OH) {
+    // L = length (X), W = width (Z), H = wall height, R = ridge height above walls, OH = overhang
+    while (building.children.length) {
+        const c = building.children.pop();
+        c.geometry?.dispose();
+    }
+
+    // Walls — single box
+    const walls = new THREE.Mesh(new THREE.BoxGeometry(L, H, W), matWall);
+    walls.position.y = H / 2;
+    walls.castShadow = true; walls.receiveShadow = true;
+    building.add(walls);
+
+    // Door (front, +Z side)
+    const door = new THREE.Mesh(new THREE.BoxGeometry(1.0, 2.1, 0.05), matDoor);
+    door.position.set(0, 1.05, W / 2 + 0.026);
+    building.add(door);
+
+    // Windows — front
+    const winGeo = new THREE.BoxGeometry(1.2, 1.0, 0.05);
+    const wF1 = new THREE.Mesh(winGeo, matWindow);
+    wF1.position.set(-L / 2 + 1.5, H * 0.6, W / 2 + 0.026);
+    const wF2 = new THREE.Mesh(winGeo, matWindow);
+    wF2.position.set( L / 2 - 1.5, H * 0.6, W / 2 + 0.026);
+    building.add(wF1, wF2);
+    // Windows — back
+    const wB1 = wF1.clone(); wB1.position.z = -W / 2 - 0.026; wB1.rotation.y = Math.PI;
+    const wB2 = wF2.clone(); wB2.position.z = -W / 2 - 0.026; wB2.rotation.y = Math.PI;
+    building.add(wB1, wB2);
+
+    // Gable triangles (на торцах: ±L/2, в плоскости YZ)
+    // Triangle vertices in local plane: (-W/2, 0), (W/2, 0), (0, R)
+    const gableShape = new THREE.Shape();
+    gableShape.moveTo(-W / 2, 0);
+    gableShape.lineTo( W / 2, 0);
+    gableShape.lineTo(0, R);
+    gableShape.lineTo(-W / 2, 0);
+    const gableGeo = new THREE.ShapeGeometry(gableShape);
+
+    const gableA = new THREE.Mesh(gableGeo, matGable);
+    gableA.rotation.y = Math.PI / 2;
+    gableA.position.set(L / 2 + 0.001, H, 0);
+    gableA.castShadow = true;
+    building.add(gableA);
+
+    const gableB = new THREE.Mesh(gableGeo, matGable);
+    gableB.rotation.y = -Math.PI / 2;
+    gableB.position.set(-L / 2 - 0.001, H, 0);
+    gableB.castShadow = true;
+    building.add(gableB);
+
+    // Roof slopes — два прямоугольника, каждый размером (L + 2*OH) × slopeLen
+    const halfW = W / 2 + OH;
+    const slopeLen = Math.sqrt(halfW * halfW + R * R);
+    const angle = Math.atan2(R, halfW); // от горизонтали
+
+    const slopeGeo = new THREE.PlaneGeometry(L + 2 * OH, slopeLen);
+
+    // North slope (наклонён в сторону -Z, верхний край у конька)
+    const slopeN = new THREE.Mesh(slopeGeo, matRoof);
+    // Плоскость по умолчанию в XY; поворачиваем так, чтобы Y по высоте, наклон в Z
+    slopeN.rotation.x = -(Math.PI / 2 - angle);
+    // Центр ската: над срединой между коньком и нижним краем
+    slopeN.position.set(0, H + R / 2, -halfW / 2);
+    slopeN.castShadow = true; slopeN.receiveShadow = true;
+    building.add(slopeN);
+
+    // South slope
+    const slopeS = new THREE.Mesh(slopeGeo, matRoof);
+    slopeS.rotation.x = (Math.PI / 2 - angle);
+    slopeS.position.set(0, H + R / 2, halfW / 2);
+    slopeS.castShadow = true; slopeS.receiveShadow = true;
+    building.add(slopeS);
+
+    // Ridge beam (конёк)
+    const ridge = new THREE.Mesh(
+        new THREE.BoxGeometry(L + 2 * OH + 0.05, 0.18, 0.18),
+        matRidge
+    );
+    ridge.position.set(0, H + R + 0.05, 0);
+    ridge.castShadow = true;
+    building.add(ridge);
+
+    // Decorative rafters (стропила) видны под свесом
+    const rafterCount = Math.max(2, Math.round(L / 1.2));
+    for (let i = 0; i <= rafterCount; i++) {
+        const x = -L / 2 - OH + (L + 2 * OH) * (i / rafterCount);
+        // Левая нога
+        const r1 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, slopeLen), matBeam);
+        r1.position.set(x, H + R / 2, -halfW / 2);
+        r1.rotation.x = -(Math.PI / 2 - angle);
+        // подопустить чуть ниже плоскости ската
+        r1.translateY(-0.07);
+        building.add(r1);
+        // Правая нога
+        const r2 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, slopeLen), matBeam);
+        r2.position.set(x, H + R / 2, halfW / 2);
+        r2.rotation.x = (Math.PI / 2 - angle);
+        r2.translateY(-0.07);
+        building.add(r2);
+    }
+
+    // Foundation
+    const foundation = new THREE.Mesh(
+        new THREE.BoxGeometry(L + 0.4, 0.3, W + 0.4),
+        new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 1 })
+    );
+    foundation.position.y = 0.15;
+    foundation.castShadow = true; foundation.receiveShadow = true;
+    building.add(foundation);
+
+    applyWireMode();
+}
+
+function applyWireMode() {
+    building.traverse(o => {
+        if (o.isMesh && o.material) {
+            if (Array.isArray(o.material)) o.material.forEach(m => m.wireframe = wireMode);
+            else o.material.wireframe = wireMode;
+        }
+    });
+}
+
+// UI wiring
+const ui = {
+    L: document.getElementById('rLen'),    vL: document.getElementById('vLen'),
+    W: document.getElementById('rWid'),    vW: document.getElementById('vWid'),
+    H: document.getElementById('rWall'),   vH: document.getElementById('vWall'),
+    R: document.getElementById('rRidge'),  vR: document.getElementById('vRidge'),
+    O: document.getElementById('rOH'),     vO: document.getElementById('vOH'),
+};
+
+function rebuild() {
+    const L = parseFloat(ui.L.value);
+    const W = parseFloat(ui.W.value);
+    const H = parseFloat(ui.H.value);
+    const R = parseFloat(ui.R.value);
+    const O = parseFloat(ui.O.value);
+    ui.vL.textContent = L.toFixed(1) + ' м';
+    ui.vW.textContent = W.toFixed(1) + ' м';
+    ui.vH.textContent = H.toFixed(2) + ' м';
+    ui.vR.textContent = R.toFixed(2) + ' м';
+    ui.vO.textContent = O.toFixed(1) + ' м';
+    buildHouse(L, W, H, R, O);
+}
+['L', 'W', 'H', 'R', 'O'].forEach(k => ui[k].addEventListener('input', rebuild));
+document.getElementById('bWire').addEventListener('click', () => {
+    wireMode = !wireMode; applyWireMode();
+});
+document.getElementById('bReset').addEventListener('click', () => {
+    camera.position.copy(initialCamPos);
+    controls.target.set(0, 2.5, 0);
+});
+
+rebuild();
+
+// Resize
+function resize() {
+    const w = canvas.clientWidth = innerWidth;
+    const h = canvas.clientHeight = innerHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize);
+resize();
+
+// Render loop
+function tick() {
+    controls.update();
+    renderer.render(scene, camera);
+    requestAnimationFrame(tick);
+}
+tick();
+</script>
+</body>
+</html>
