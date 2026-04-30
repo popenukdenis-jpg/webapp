@@ -94,8 +94,8 @@ td.act { width: 32px; text-align: center; }
 
 .nom-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); overflow: hidden; }
 .nom-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #f9fafb; border-bottom: 1px solid #e5e7eb; flex-wrap: wrap; }
-.nom-head .caret { width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; user-select: none; color: #6b7280; font-size: 14px; transition: transform .15s; flex: 0 0 auto; }
-.nom-head .caret.collapsed { transform: rotate(-90deg); }
+.nom-head .caret { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; user-select: none; color: #374151; font-size: 18px; font-weight: 700; line-height: 1; border: 1px solid #d1d5db; border-radius: 4px; background: #fff; flex: 0 0 auto; }
+.nom-head .caret:hover { background: #f3f4f6; }
 .nom-head .name-input { flex: 1; min-width: 220px; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; font-family: inherit; background: #fff; }
 .nom-head .name-input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
 .nom-head .nom-meta { font-size: 12px; color: #6b7280; margin-right: auto; }
@@ -108,8 +108,7 @@ td.act { width: 32px; text-align: center; }
 
 .result-block { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); overflow: hidden; }
 .result-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: #eff6ff; border-bottom: 1px solid #dbeafe; cursor: pointer; user-select: none; }
-.result-head .caret { color: #1d4ed8; font-size: 14px; transition: transform .15s; }
-.result-head .caret.collapsed { transform: rotate(-90deg); }
+.result-head .caret { color: #1d4ed8; font-size: 18px; font-weight: 700; line-height: 1; width: 22px; display: inline-flex; align-items: center; justify-content: center; }
 .result-head .title { font-weight: 600; font-size: 15px; color: #111827; }
 .result-head .badge { background: #1d4ed8; color: #fff; font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 999px; }
 .result-head .meta { font-size: 12px; color: #6b7280; margin-left: auto; }
@@ -121,7 +120,7 @@ td.act { width: 32px; text-align: center; }
 
 <header>
     <h1>Раскрой металлопроката</h1>
-    <div class="sub">Линейный 1D-раскрой с минимизацией отходов · карта реза для склада</div>
+    <div class="sub">Линейный 1D-раскрой с минимизацией остатков · карта реза для склада</div>
 </header>
 
 <div class="card no-print">
@@ -220,7 +219,7 @@ function profileHtml(p, idx) {
 
     return `<div class="nom-card" data-pid="${p.id}">
         <div class="nom-head">
-            <span class="caret ${p.collapsed ? 'collapsed' : ''}" data-toggle>▼</span>
+            <span class="caret" data-toggle title="${p.collapsed ? 'Развернуть' : 'Свернуть'}">${p.collapsed ? '+' : '−'}</span>
             <input class="name-input" type="text" placeholder="Номенклатура (напр. Профтруба 40×40×2)" value="${esc(p.name)}" data-name>
             <span class="nom-meta">${totalCuts ? totalCuts + ' отр.' : '—'}</span>
             <div class="toggle" data-len-toggle>${lenButtons}</div>
@@ -238,7 +237,7 @@ function profileHtml(p, idx) {
                 <button class="btn" data-add-cut>+ строка</button>
                 <button class="btn ghost" data-preset>Пример</button>
                 <button class="btn ghost" data-clear-cuts>Очистить</button>
-                <button class="btn ghost" data-toggle title="Свернуть блок" style="margin-left:auto;">▲ свернуть</button>
+                <button class="btn ghost" data-toggle title="Свернуть блок" style="margin-left:auto;">− свернуть</button>
             </div>
         </div>
     </div>`;
@@ -442,12 +441,12 @@ function renderResult(report) {
             <div class="stat"><div class="k">Длина металла</div><div class="v">${fmtMm(totalLen)}</div></div>
             <div class="stat good"><div class="k">В деталях</div><div class="v">${pct(usedPct)}</div></div>
             <div class="stat warn"><div class="k">Обрезки на склад</div><div class="v">${fmtMm(totalRem)}</div></div>
-            <div class="stat bad"><div class="k">Отходы (с резом)</div><div class="v">${pct(wastePct)}</div></div>
+            <div class="stat bad"><div class="k">Остатки (с резом)</div><div class="v">${pct(wastePct)}</div></div>
         </div>
         <div class="legend no-print">
             <span><i style="background:#bfdbfe;border-color:#1d4ed8;"></i>отрез</span>
             <span><i style="background:#fde68a;border-color:#b45309;"></i>деловой обрезок</span>
-            <span><i style="background:#fecaca;border-color:#b91c1c;"></i>отход</span>
+            <span><i style="background:#fecaca;border-color:#b91c1c;"></i>остаток</span>
             <span><i style="background:#374151;border-color:#374151;"></i>пропил</span>
         </div>
     </div>`;
@@ -481,7 +480,7 @@ function renderResult(report) {
         }
         html += `<div class="result-block" data-block="${blockId}">
             <div class="result-head" data-block-toggle>
-                <span class="caret ${collapsed ? 'collapsed' : ''}">▼</span>
+                <span class="caret">${collapsed ? '+' : '−'}</span>
                 <span class="title">${esc(p.name) || 'Номенклатура #' + (idx + 1)}</span>
                 <span class="badge">${r.bars.length} ${pluralBars(r.bars.length)}</span>
                 <span class="meta">${fmtMm(r.barLen)} · ${r.bars.reduce((s,b)=>s+b.cuts.length,0)} отр.</span>
@@ -507,7 +506,7 @@ function renderResult(report) {
         const caret = head.querySelector('.caret');
         const hide = !body.classList.contains('hidden');
         body.classList.toggle('hidden', hide);
-        caret.classList.toggle('collapsed', hide);
+        if (caret) caret.textContent = hide ? '+' : '−';
     });
 
     document.getElementById('btnPrint').addEventListener('click', () => window.print());
@@ -555,7 +554,7 @@ function renderBarSvg(b, num, barLen, kerf) {
     svg += `</svg>`;
 
     const tailLabel = b.tail <= 0 ? 'без остатка'
-        : (b.isRemnant ? `обрезок ${Math.round(b.tail)} мм → склад` : `отход ${Math.round(b.tail)} мм`);
+        : (b.isRemnant ? `обрезок ${Math.round(b.tail)} мм → склад` : `остаток ${Math.round(b.tail)} мм`);
     return `<div class="bar">
         <div class="bar-head">
             <span><b>Хлыст #${num}</b> · ${b.cuts.length} отр.</span>
@@ -579,13 +578,13 @@ function exportCsv(report) {
         rows.push(['Хлыст №', 'Отрез №', 'Длина, мм']);
         r.bars.forEach((b, i) => {
             b.cuts.forEach((c, j) => rows.push([i + 1, j + 1, c.len]));
-            rows.push([i + 1, '', `— остаток ${Math.round(b.tail)} мм (${b.isRemnant ? 'деловой' : 'отход'}) —`]);
+            rows.push([i + 1, '', `— остаток ${Math.round(b.tail)} мм (${b.isRemnant ? 'деловой' : 'остаток'}) —`]);
         });
         rows.push(['ИТОГО хлыстов', r.bars.length]);
         rows.push(['Общая длина, мм', r.totalBarsLen]);
         rows.push(['В деталях, мм', r.totalCutsLen]);
         rows.push(['Деловых обрезков, мм', r.totalRemnant]);
-        rows.push(['Отходов (с резом), мм', r.totalWaste]);
+        rows.push(['Остатков (с резом), мм', r.totalWaste]);
         rows.push([]);
     });
     const csv = rows.map(row => row.map(v => {
