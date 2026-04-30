@@ -1062,14 +1062,30 @@ function calcSheetMetrics(sheet, kerf) {
 // === Рендер карты листового раскроя ===
 function renderSheetSvg(sheet, sheetW, sheetH) {
     const palette = ['#bfdbfe','#a7f3d0','#fde68a','#fbcfe8','#c7d2fe','#fed7aa','#bae6fd','#d9f99d','#fecaca','#e9d5ff'];
-    let svg = `<svg viewBox="0 0 ${sheetW} ${sheetH}" class="sheet-svg" style="aspect-ratio:${sheetW}/${sheetH};" preserveAspectRatio="xMidYMid meet">`;
-    svg += `<rect x="0" y="0" width="${sheetW}" height="${sheetH}" fill="#fff" stroke="#9ca3af" stroke-width="4"/>`;
+    // Если лист «портретный» (выше, чем шире) — поворачиваем визуально на 90°,
+    // чтобы длинная сторона была горизонталью. Пропорции сохраняем.
+    const isPortrait = sheetH > sheetW;
+    const dispW = isPortrait ? sheetH : sheetW;
+    const dispH = isPortrait ? sheetW : sheetH;
+
+    let svg = `<svg viewBox="0 0 ${dispW} ${dispH}" class="sheet-svg" style="aspect-ratio:${dispW}/${dispH};" preserveAspectRatio="xMidYMid meet">`;
+    svg += `<rect x="0" y="0" width="${dispW}" height="${dispH}" fill="#fff" stroke="#9ca3af" stroke-width="4"/>`;
     sheet.placements.forEach(p => {
         const fill = palette[p.srcIdx % palette.length];
-        svg += `<rect x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}" fill="${fill}" stroke="#1f2937" stroke-width="3"/>`;
-        const fs = Math.max(28, Math.min(p.w, p.h) / 4.5);
+        let x, y, w, h;
+        if (isPortrait) {
+            // 90° за годинниковою: (px,py) → (sheetH - py - ph, px)
+            x = sheetH - p.y - p.h;
+            y = p.x;
+            w = p.h;
+            h = p.w;
+        } else {
+            x = p.x; y = p.y; w = p.w; h = p.h;
+        }
+        svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${fill}" stroke="#1f2937" stroke-width="3"/>`;
+        const fs = Math.max(28, Math.min(w, h) / 4.5);
         const label = `${p.w}×${p.h}${p.rot ? ' ↻' : ''}`;
-        svg += `<text x="${p.x + p.w/2}" y="${p.y + p.h/2}" text-anchor="middle" dominant-baseline="central" font-size="${fs}" font-family="system-ui" font-weight="600" fill="#111">${label}</text>`;
+        svg += `<text x="${x + w/2}" y="${y + h/2}" text-anchor="middle" dominant-baseline="central" font-size="${fs}" font-family="system-ui" font-weight="600" fill="#111">${label}</text>`;
     });
     svg += `</svg>`;
     return svg;
