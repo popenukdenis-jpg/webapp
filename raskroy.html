@@ -118,6 +118,42 @@ td.act { width: 32px; text-align: center; }
 .print-header h1 { margin-bottom: 2px; }
 .print-header .meta { font-size: 12px; color: #374151; }
 
+@media (max-width: 640px) {
+    body { padding: 10px; }
+    h1 { font-size: 18px; }
+    h2 { font-size: 13px; margin-bottom: 8px; }
+    .card { padding: 10px 12px; }
+    .row { gap: 8px; }
+    .field { flex: 1 1 calc(50% - 4px); min-width: 0; }
+    .field input[type=text], .field input[type=number] { font-size: 16px; min-width: 0; width: 100%; }
+    .nom-head { padding: 8px 10px; gap: 6px; }
+    .nom-head .name-input { flex: 1 1 100%; min-width: 0; font-size: 16px; order: 1; }
+    .nom-head .caret { order: 0; }
+    .nom-head .nom-del { order: 0; margin-left: auto; }
+    .nom-head .nom-meta { order: 2; font-size: 11px; flex: 0 0 auto; }
+    .nom-head [data-len-toggle] { order: 3; }
+    .nom-head [data-custom-len] { order: 4; flex: 1; min-width: 80px; }
+    .toggle button { padding: 6px 10px; font-size: 13px; }
+    .nom-body { padding: 8px 10px; }
+    table { font-size: 13px; }
+    th, td { padding: 4px 6px; }
+    td input { font-size: 16px; }
+    .summary { gap: 6px; grid-template-columns: repeat(auto-fill, minmax(108px, 1fr)); }
+    .stat { padding: 6px 8px; }
+    .stat .v { font-size: 14px; }
+    .btn { padding: 7px 10px; font-size: 13px; }
+    .btn.big { padding: 10px 16px; font-size: 14px; }
+    .toolbar { gap: 6px; }
+    .footer-act .btn { flex: 1 1 calc(50% - 5px); }
+    .legend { gap: 8px; flex-wrap: wrap; }
+    .result-head { padding: 10px 12px; gap: 6px; flex-wrap: wrap; }
+    .result-head .meta { width: 100%; margin-left: 0; }
+    .result-body { padding: 10px 12px; }
+    .bar-head { font-size: 12px; }
+    .bar-svg { height: 22px; }
+    .bar-svg text { font-size: 13px; }
+}
+
 .client-view { display: none; }
 .cv-block { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); overflow: hidden; page-break-inside: avoid; break-inside: avoid; }
 .cv-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: #eff6ff; border-bottom: 1px solid #dbeafe; }
@@ -591,7 +627,6 @@ function renderResult(report) {
     html += `<div class="footer-act no-print">
         <button class="btn primary" id="btnPrintWh">🖨 Карта розкрою (склад)</button>
         <button class="btn primary" id="btnPrintCl">🖨 Замовлення (клієнт)</button>
-        <button class="btn" id="btnCsv">Експорт CSV</button>
         <button class="btn ghost" id="btnHide">Сховати</button>
     </div>`;
 
@@ -633,7 +668,6 @@ function renderResult(report) {
     window.addEventListener('afterprint', () => document.body.classList.remove('print-client'), { once: true });
     document.getElementById('btnPrintWh').addEventListener('click', () => printAs('warehouse'));
     document.getElementById('btnPrintCl').addEventListener('click', () => printAs('client'));
-    document.getElementById('btnCsv').addEventListener('click', () => exportCsv(report));
     document.getElementById('btnHide').addEventListener('click', () => {
         root.classList.remove('show'); root.innerHTML = ''; window.scrollTo({ top: 0, behavior: 'smooth' });
     });
@@ -685,49 +719,6 @@ function renderBarSvg(b, num, barLen, kerf, profileName) {
         </div>
         ${svg}
     </div>`;
-}
-
-function exportCsv(report) {
-    const rows = [];
-    rows.push(['КТ Сталь · Карта розкрою']);
-    rows.push(['Замовлення', state.order || '']);
-    rows.push(['Різ, мм', state.kerf]);
-    rows.push(['Мін. залишок, мм', state.minRem]);
-    rows.push([]);
-    report.results.forEach((entry, idx) => {
-        const { profile: p, r } = entry;
-        rows.push([`Номенклатура ${idx + 1}`, p.name || '']);
-        rows.push(['Заготовка, мм', p.barLen]);
-        if (r.error) { rows.push(['Помилка', r.error]); rows.push([]); return; }
-        rows.push(['Хлист №', 'Відріз №', 'Довжина, мм']);
-        r.bars.forEach((b, i) => {
-            b.cuts.forEach((c, j) => rows.push([i + 1, j + 1, c.len]));
-            rows.push([i + 1, '', `— залишок ${Math.round(b.tail)} мм (${b.isRemnant ? 'діловий' : 'залишок'}) —`]);
-        });
-        rows.push(['ВСЬОГО хлистів', r.bars.length]);
-        rows.push(['Загальна довжина, мм', r.totalBarsLen]);
-        rows.push(['У деталях, мм', r.totalCutsLen]);
-        rows.push(['Ділових залишків, мм', r.totalRemnant]);
-        rows.push(['Залишків (з різом), мм', r.totalWaste]);
-        rows.push(['Різів, шт', entry.sawCuts || 0]);
-        rows.push(['Ціна різу, грн', p.cutPrice || 0]);
-        rows.push(['Вартість різів, грн', entry.cost || 0]);
-        rows.push([]);
-    });
-    const grandCost = report.results.reduce((s, x) => s + (x.cost || 0), 0);
-    const grandSaw = report.results.reduce((s, x) => s + (x.sawCuts || 0), 0);
-    rows.push(['ВСЬОГО різів по замовленню, шт', grandSaw]);
-    rows.push(['ВСЬОГО вартість різів, грн', grandCost]);
-    const csv = rows.map(row => row.map(v => {
-        const s = String(v ?? '');
-        return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-    }).join(';')).join('\r\n');
-    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    const name = (state.order || 'order').replace(/[^\w\-А-Яа-яЁё]/g, '_');
-    a.href = url; a.download = `raskroy_${name}_${Date.now()}.csv`; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
 document.getElementById('btnCalc').addEventListener('click', () => {
