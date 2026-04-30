@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Раскрой металлопроката</title>
+<style>
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: #f4f5f7; color: #1f2937; }
+body { padding: 16px; max-width: 1100px; margin: 0 auto; }
+h1 { font-size: 22px; margin: 0 0 4px 0; }
+h2 { font-size: 15px; margin: 0 0 10px 0; color: #374151; text-transform: uppercase; letter-spacing: 0.5px; }
+.sub { color: #6b7280; font-size: 13px; margin-bottom: 18px; }
+
+.card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px 18px; margin-bottom: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+
+.row { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field label { font-size: 12px; color: #6b7280; }
+.field input[type=text], .field input[type=number] {
+    padding: 7px 10px; border: 1px solid #d1d5db; border-radius: 6px;
+    font-size: 14px; font-family: inherit; min-width: 80px;
+}
+.field input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+
+.toggle { display: inline-flex; border: 1px solid #d1d5db; border-radius: 6px; overflow: hidden; }
+.toggle button {
+    padding: 7px 14px; border: none; background: #fff; cursor: pointer;
+    font-size: 14px; font-family: inherit; color: #374151; border-right: 1px solid #d1d5db;
+}
+.toggle button:last-child { border-right: none; }
+.toggle button.active { background: #3b82f6; color: #fff; }
+
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #f1f3f5; }
+th { font-weight: 600; font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.3px; }
+td input { width: 100%; padding: 5px 7px; border: 1px solid transparent; border-radius: 4px; font-size: 14px; font-family: inherit; background: transparent; }
+td input:hover { border-color: #e5e7eb; }
+td input:focus { outline: none; border-color: #3b82f6; background: #fff; box-shadow: 0 0 0 2px rgba(59,130,246,0.15); }
+td.num input { text-align: right; font-variant-numeric: tabular-nums; }
+td.act { width: 32px; text-align: center; }
+.del { background: none; border: none; cursor: pointer; color: #ef4444; font-size: 16px; padding: 2px 6px; border-radius: 4px; }
+.del:hover { background: #fee2e2; }
+
+.btn { padding: 8px 14px; border: 1px solid #d1d5db; background: #fff; border-radius: 6px; cursor: pointer; font-size: 14px; font-family: inherit; color: #374151; }
+.btn:hover { background: #f9fafb; }
+.btn.primary { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+.btn.primary:hover { background: #2563eb; }
+.btn.big { padding: 12px 22px; font-size: 16px; font-weight: 600; }
+.btn.ghost { background: transparent; border-color: transparent; color: #3b82f6; }
+.btn.ghost:hover { background: #eff6ff; }
+
+.toolbar { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+
+#result { display: none; }
+#result.show { display: block; }
+
+.summary { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 14px; }
+.stat { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 8px 14px; }
+.stat .k { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.4px; }
+.stat .v { font-size: 18px; font-weight: 600; color: #111827; font-variant-numeric: tabular-nums; }
+.stat.good .v { color: #059669; }
+.stat.warn .v { color: #d97706; }
+.stat.bad .v { color: #dc2626; }
+
+.bar { margin: 14px 0; }
+.bar-head { display: flex; justify-content: space-between; font-size: 13px; color: #374151; margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+.bar-svg { width: 100%; height: 44px; display: block; }
+.bar-svg rect.cut { stroke: #1f2937; stroke-width: 1; }
+.bar-svg rect.tail-rem { fill: #fde68a; stroke: #b45309; stroke-width: 1; }
+.bar-svg rect.tail-waste { fill: #fecaca; stroke: #b91c1c; stroke-width: 1; }
+.bar-svg text { font-size: 11px; font-family: system-ui; fill: #111827; pointer-events: none; }
+
+.unplaced { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 10px 14px; border-radius: 6px; margin-top: 10px; font-size: 13px; }
+
+.legend { display: flex; gap: 14px; font-size: 12px; color: #6b7280; margin-top: 8px; }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 2px; vertical-align: middle; margin-right: 4px; border: 1px solid rgba(0,0,0,0.15); }
+
+.footer-act { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+
+@media print {
+    body { background: #fff; padding: 0; max-width: none; }
+    .card.no-print, .toolbar.no-print, .footer-act, header .no-print { display: none !important; }
+    #result { display: block !important; }
+    .bar { page-break-inside: avoid; }
+    .card { box-shadow: none; border: none; padding: 0; margin-bottom: 8px; }
+    h1 { font-size: 16px; }
+    .stat { background: #fff; }
+    .print-header { display: block !important; border-bottom: 2px solid #111; margin-bottom: 12px; padding-bottom: 6px; }
+}
+.print-header { display: none; }
+.print-header h1 { margin-bottom: 2px; }
+.print-header .meta { font-size: 12px; color: #374151; }
+</style>
+</head>
+<body>
+
+<header>
+    <h1>Раскрой металлопроката</h1>
+    <div class="sub">Линейный 1D-раскрой с минимизацией отходов · карта реза для склада</div>
+</header>
+
+<div class="card no-print">
+    <h2>Заказ</h2>
+    <div class="row">
+        <div class="field" style="flex:1; min-width: 240px;">
+            <label>Профиль / номенклатура</label>
+            <input type="text" id="fProfile" placeholder="напр. Арматура Ø12 А500С">
+        </div>
+        <div class="field">
+            <label>№ заказа</label>
+            <input type="text" id="fOrder" placeholder="ЗМ-00123">
+        </div>
+        <div class="field">
+            <label>Длина заготовки (хлыста)</label>
+            <div class="toggle" id="lenToggle">
+                <button data-len="6000">6 м</button>
+                <button data-len="12000" class="active">12 м</button>
+                <button data-len="custom">другое</button>
+            </div>
+        </div>
+        <div class="field" id="customLenWrap" style="display:none;">
+            <label>мм</label>
+            <input type="number" id="fCustomLen" min="100" step="1" value="11700">
+        </div>
+    </div>
+    <div class="row" style="margin-top:12px;">
+        <div class="field">
+            <label>Ширина реза (kerf), мм</label>
+            <input type="number" id="fKerf" min="0" step="0.5" value="3">
+        </div>
+        <div class="field">
+            <label>Мин. деловой обрезок, мм</label>
+            <input type="number" id="fMinRem" min="0" step="10" value="300">
+        </div>
+    </div>
+</div>
+
+<div class="card no-print">
+    <h2>Отрезки</h2>
+    <table id="cutsTable">
+        <thead>
+            <tr>
+                <th style="width:40px;">№</th>
+                <th>Длина, мм</th>
+                <th>Кол-во</th>
+                <th>Маркировка / позиция</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody id="cutsBody"></tbody>
+    </table>
+    <div class="toolbar">
+        <button class="btn" id="btnAddCut">+ строка</button>
+        <button class="btn ghost" id="btnPreset">Пример</button>
+        <button class="btn ghost" id="btnClearCuts">Очистить</button>
+    </div>
+</div>
+
+<div class="card no-print" style="text-align:center;">
+    <button class="btn primary big" id="btnCalc">Рассчитать карту раскроя</button>
+</div>
+
+<div id="result"></div>
+
+<script>
+// === Состояние ===
+const state = {
+    profile: '',
+    order: '',
+    barLen: 12000,
+    kerf: 3,
+    minRem: 300,
+    cuts: [],   // [{length, qty, mark}]
+    result: null,
+};
+
+const STORAGE_KEY = 'raskroy.v1';
+
+function save() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        profile: state.profile, order: state.order, barLen: state.barLen,
+        kerf: state.kerf, minRem: state.minRem, cuts: state.cuts,
+    })); } catch (e) {}
+}
+function load() {
+    try {
+        const s = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+        if (s) Object.assign(state, s);
+    } catch (e) {}
+}
+
+// === Отрезки: рендер таблицы ===
+function renderCuts() {
+    const tb = document.getElementById('cutsBody');
+    tb.innerHTML = '';
+    state.cuts.forEach((c, i) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="color:#6b7280; font-variant-numeric:tabular-nums;">${i + 1}</td>
+            <td class="num"><input type="number" min="1" step="1" value="${c.length || ''}" data-i="${i}" data-k="length"></td>
+            <td class="num"><input type="number" min="1" step="1" value="${c.qty || ''}" data-i="${i}" data-k="qty"></td>
+            <td><input type="text" value="${c.mark || ''}" data-i="${i}" data-k="mark" placeholder="—"></td>
+            <td class="act"><button class="del" data-del="${i}" title="Удалить">✕</button></td>
+        `;
+        tb.appendChild(tr);
+    });
+    if (state.cuts.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td colspan="5" style="color:#9ca3af; text-align:center; padding: 16px;">Добавьте строки кнопкой ниже</td>`;
+        tb.appendChild(tr);
+    }
+}
+
+document.getElementById('cutsBody').addEventListener('input', e => {
+    const inp = e.target;
+    if (!inp.dataset.k) return;
+    const i = +inp.dataset.i, k = inp.dataset.k;
+    state.cuts[i][k] = (k === 'mark') ? inp.value : (parseInt(inp.value, 10) || 0);
+    save();
+});
+document.getElementById('cutsBody').addEventListener('click', e => {
+    const b = e.target.closest('[data-del]');
+    if (!b) return;
+    state.cuts.splice(+b.dataset.del, 1);
+    renderCuts(); save();
+});
+
+document.getElementById('btnAddCut').addEventListener('click', () => {
+    state.cuts.push({ length: 0, qty: 1, mark: '' });
+    renderCuts(); save();
+});
+document.getElementById('btnClearCuts').addEventListener('click', () => {
+    if (!state.cuts.length || confirm('Очистить все строки?')) {
+        state.cuts = []; renderCuts(); save();
+    }
+});
+document.getElementById('btnPreset').addEventListener('click', () => {
+    state.cuts = [
+        { length: 2400, qty: 12, mark: 'БМ-1 верх' },
+        { length: 1800, qty: 8,  mark: 'СТ-1 стойка' },
+        { length: 1500, qty: 14, mark: 'СТ-2 стойка' },
+        { length: 950,  qty: 20, mark: 'РК-1 раскос' },
+        { length: 600,  qty: 16, mark: 'УЗ-1 узел' },
+    ];
+    state.profile = state.profile || 'Профтруба 40×40×2';
+    document.getElementById('fProfile').value = state.profile;
+    renderCuts(); save();
+});
+
+// === Параметры заказа ===
+const fProfile = document.getElementById('fProfile');
+const fOrder = document.getElementById('fOrder');
+const fKerf = document.getElementById('fKerf');
+const fMinRem = document.getElementById('fMinRem');
+const fCustomLen = document.getElementById('fCustomLen');
+const customLenWrap = document.getElementById('customLenWrap');
+const lenToggle = document.getElementById('lenToggle');
+
+fProfile.addEventListener('input', () => { state.profile = fProfile.value; save(); });
+fOrder.addEventListener('input', () => { state.order = fOrder.value; save(); });
+fKerf.addEventListener('input', () => { state.kerf = parseFloat(fKerf.value) || 0; save(); });
+fMinRem.addEventListener('input', () => { state.minRem = parseInt(fMinRem.value, 10) || 0; save(); });
+fCustomLen.addEventListener('input', () => {
+    const v = parseInt(fCustomLen.value, 10) || 0;
+    if (v > 0) { state.barLen = v; save(); }
+});
+
+lenToggle.addEventListener('click', e => {
+    const b = e.target.closest('button[data-len]');
+    if (!b) return;
+    [...lenToggle.children].forEach(c => c.classList.remove('active'));
+    b.classList.add('active');
+    if (b.dataset.len === 'custom') {
+        customLenWrap.style.display = '';
+        state.barLen = parseInt(fCustomLen.value, 10) || 11700;
+    } else {
+        customLenWrap.style.display = 'none';
+        state.barLen = parseInt(b.dataset.len, 10);
+    }
+    save();
+});
+
+function applyStateToUI() {
+    fProfile.value = state.profile || '';
+    fOrder.value = state.order || '';
+    fKerf.value = state.kerf;
+    fMinRem.value = state.minRem;
+    // toggle
+    [...lenToggle.children].forEach(c => c.classList.remove('active'));
+    if (state.barLen === 6000) {
+        lenToggle.querySelector('[data-len="6000"]').classList.add('active');
+        customLenWrap.style.display = 'none';
+    } else if (state.barLen === 12000) {
+        lenToggle.querySelector('[data-len="12000"]').classList.add('active');
+        customLenWrap.style.display = 'none';
+    } else {
+        lenToggle.querySelector('[data-len="custom"]').classList.add('active');
+        customLenWrap.style.display = '';
+        fCustomLen.value = state.barLen;
+    }
+}
+
+// === Расчёт (заглушка — будет в шаге 2) ===
+document.getElementById('btnCalc').addEventListener('click', () => {
+    alert('Оптимизатор будет добавлен в шаге 2.');
+});
+
+// === Init ===
+load();
+applyStateToUI();
+renderCuts();
+</script>
+</body>
+</html>
