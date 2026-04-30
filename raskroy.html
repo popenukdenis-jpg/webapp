@@ -1071,7 +1071,7 @@ function calcSheetMetrics(sheet, kerf) {
 }
 
 // === Рендер карты листового раскроя ===
-function renderSheetSvg(sheet, sheetW, sheetH) {
+function renderSheetSvg(sheet, sheetW, sheetH, infoLines) {
     const palette = ['#bfdbfe','#a7f3d0','#fde68a','#fbcfe8','#c7d2fe','#fed7aa','#bae6fd','#d9f99d','#fecaca','#e9d5ff'];
     // Если лист «портретный» (выше, чем шире) — поворачиваем визуально на 90°,
     // чтобы длинная сторона была горизонталью. Пропорции сохраняем.
@@ -1090,6 +1090,19 @@ function renderSheetSvg(sheet, sheetW, sheetH) {
         if (isPortrait) { sx = 0; sy = 0; sw = soldH; sh = sheetW; }
         else { sx = 0; sy = 0; sw = sheetW; sh = soldH; }
         svg += `<rect x="${sx}" y="${sy}" width="${sw}" height="${sh}" fill="#fef3c7" stroke="#dc2626" stroke-width="6" stroke-dasharray="20 12"/>`;
+
+        // Подпись информации о проданной зоне в правом-нижнем углу подсветки
+        if (infoLines && infoLines.length) {
+            const tx = sx + sw - 30, ty = sy + sh - 30;
+            const fs = Math.max(36, Math.min(sw, sh) / 22);
+            const startY = ty - (infoLines.length - 1) * fs * 1.2;
+            let textBlock = `<text x="${tx}" y="${startY}" text-anchor="end" font-size="${fs}" font-family="system-ui" font-weight="700" fill="#7f1d1d">`;
+            infoLines.forEach((line, i) => {
+                textBlock += `<tspan x="${tx}" ${i === 0 ? '' : `dy="${fs * 1.2}"`}>${esc(line)}</tspan>`;
+            });
+            textBlock += `</text>`;
+            svg += textBlock;
+        }
     }
     sheet.placements.forEach(p => {
         const fill = palette[p.srcIdx % palette.length];
@@ -1180,12 +1193,16 @@ function renderResultSheet(report) {
         r.sheets.forEach((s, i) => {
             const m = entry.metrics[i];
             const soldArea = (m.soldH * r.sheetW / 1e6).toFixed(2);
+            const infoLines = [
+                `${r.sheetW}×${Math.round(m.soldH)}`,
+                `${soldArea} м²`,
+                `врізок ${m.pierces} · різ ${(m.cutLen/1000).toFixed(2)} м`,
+            ];
             bodyHtml += `<div class="bar">
                 <div class="bar-head">
                     <span><b>Лист ${esc(p.name)}${p.thickness ? ' ' + p.thickness + 'мм' : ''} №${i+1}</b> · ${s.placements.length} дет.</span>
-                    <span>продано <b>${r.sheetW}×${Math.round(m.soldH)}</b> · ${soldArea} м² · врізок ${m.pierces} · різ ${(m.cutLen/1000).toFixed(2)} м</span>
                 </div>
-                ${renderSheetSvg(s, r.sheetW, r.sheetH)}
+                ${renderSheetSvg(s, r.sheetW, r.sheetH, infoLines)}
             </div>`;
         });
         if (r.unplaced && r.unplaced.length) {
