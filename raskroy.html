@@ -235,7 +235,6 @@ function profileHtml(p, idx) {
             </table>
             <div class="toolbar">
                 <button class="btn" data-add-cut>+ строка</button>
-                <button class="btn ghost" data-preset>Пример</button>
                 <button class="btn ghost" data-clear-cuts>Очистить</button>
                 <button class="btn ghost" data-toggle title="Свернуть блок" style="margin-left:auto;">− свернуть</button>
             </div>
@@ -305,14 +304,6 @@ document.getElementById('profilesContainer').addEventListener('click', e => {
     if (t.closest('[data-clear-cuts]')) {
         if (!p.cuts.length || confirm('Очистить все строки?')) { p.cuts = []; renderProfiles(); save(); }
         return;
-    }
-    if (t.closest('[data-preset]')) {
-        p.cuts = [
-            { length: 2400, qty: 12 }, { length: 1800, qty: 8 },
-            { length: 1500, qty: 14 }, { length: 950, qty: 20 }, { length: 600, qty: 16 },
-        ];
-        if (!p.name) p.name = 'Профтруба 40×40×2';
-        renderProfiles(); save();
     }
 });
 
