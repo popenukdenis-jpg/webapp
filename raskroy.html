@@ -1065,7 +1065,9 @@ function calcSheetMetrics(sheet, kerf) {
     const pierces = sheet.placements.length;
     const cutLen = sheet.placements.reduce((s, p) => s + 2 * (p.w + p.h), 0);
     const used = sheet.placements.reduce((s, p) => s + p.w * p.h, 0);
-    return { pierces, cutLen, used };
+    // Клиенту продаём лист кратно ширине: полная ширина × максимальная использованная длина
+    const soldH = sheet.placements.reduce((m, p) => Math.max(m, p.y + p.h), 0);
+    return { pierces, cutLen, used, soldH };
 }
 
 // === Рендер карты листового раскроя ===
@@ -1077,8 +1079,18 @@ function renderSheetSvg(sheet, sheetW, sheetH) {
     const dispW = isPortrait ? sheetH : sheetW;
     const dispH = isPortrait ? sheetW : sheetH;
 
+    // Зона, продаваемая клиенту: полная ширина × максимальная использованная длина
+    const soldH = sheet.placements.reduce((m, p) => Math.max(m, p.y + p.h), 0);
+
     let svg = `<svg viewBox="0 0 ${dispW} ${dispH}" class="sheet-svg" style="aspect-ratio:${dispW}/${dispH};" preserveAspectRatio="xMidYMid meet">`;
     svg += `<rect x="0" y="0" width="${dispW}" height="${dispH}" fill="#fff" stroke="#9ca3af" stroke-width="4"/>`;
+    // Подсветка проданной зоны (под деталями)
+    if (soldH > 0) {
+        let sx, sy, sw, sh;
+        if (isPortrait) { sx = 0; sy = 0; sw = soldH; sh = sheetW; }
+        else { sx = 0; sy = 0; sw = sheetW; sh = soldH; }
+        svg += `<rect x="${sx}" y="${sy}" width="${sw}" height="${sh}" fill="#fef3c7" stroke="#dc2626" stroke-width="6" stroke-dasharray="20 12"/>`;
+    }
     sheet.placements.forEach(p => {
         const fill = palette[p.srcIdx % palette.length];
         let x, y, w, h;
@@ -1106,13 +1118,14 @@ function renderResultSheet(report) {
     if (!report) { root.classList.remove('show'); root.innerHTML = ''; return; }
     const dateStr = new Date().toLocaleDateString('uk-UA');
 
-    let totalSheets = 0, totalPierces = 0, totalCutLen = 0, totalArea = 0, totalUsed = 0;
+    let totalSheets = 0, totalPierces = 0, totalCutLen = 0, totalArea = 0, totalUsed = 0, totalSoldArea = 0;
     report.results.forEach(entry => {
         const r = entry.r;
         if (r.error || !r.sheets) return;
         entry.metrics = r.sheets.map(s => calcSheetMetrics(s, r.kerf));
         entry.pierces = entry.metrics.reduce((s, m) => s + m.pierces, 0);
         entry.cutLen = entry.metrics.reduce((s, m) => s + m.cutLen, 0);
+        entry.soldArea = entry.metrics.reduce((s, m) => s + m.soldH * r.sheetW, 0); // мм²
         const price = ktPriceFor(entry.profile.thickness);
         entry.piercePrice = price ? price.pierce : 0;
         entry.cutMeterPrice = price ? price.cut : 0;
@@ -1122,6 +1135,7 @@ function renderResultSheet(report) {
         totalCutLen += entry.cutLen;
         totalArea += r.sheets.length * r.sheetW * r.sheetH;
         totalUsed += entry.metrics.reduce((s, m) => s + m.used, 0);
+        totalSoldArea += entry.soldArea;
     });
     const totalCost = report.results.reduce((s, x) => s + (x.cost || 0), 0);
     const usedPct = totalArea > 0 ? totalUsed / totalArea * 100 : 0;
@@ -1136,6 +1150,7 @@ function renderResultSheet(report) {
             <div class="stat"><div class="k">Номенклатур</div><div class="v">${report.results.length}</div></div>
             <div class="stat"><div class="k">Листів всього</div><div class="v">${totalSheets}</div></div>
             <div class="stat good"><div class="k">У деталях</div><div class="v">${pct(usedPct)}</div></div>
+            <div class="stat warn"><div class="k">Продано клієнту</div><div class="v">${(totalSoldArea/1e6).toFixed(2)} м²</div></div>
             <div class="stat"><div class="k">Врізок</div><div class="v">${totalPierces}</div></div>
             <div class="stat"><div class="k">Довжина різу</div><div class="v">${(totalCutLen/1000).toFixed(2)} м</div></div>
             <div class="stat cost"><div class="k">Вартість різів</div><div class="v">${fmtMoney(totalCost)}</div></div>
@@ -1155,6 +1170,7 @@ function renderResultSheet(report) {
             <div class="stat"><div class="k">Листів</div><div class="v">${r.sheets.length}</div></div>
             <div class="stat"><div class="k">Лист</div><div class="v">${r.sheetW}×${r.sheetH}</div></div>
             <div class="stat good"><div class="k">У деталях</div><div class="v">${pct(usedP)}</div></div>
+            <div class="stat warn"><div class="k">Продано клієнту</div><div class="v">${(entry.soldArea/1e6).toFixed(2)} м²</div></div>
             <div class="stat"><div class="k">Врізок</div><div class="v">${entry.pierces}</div></div>
             <div class="stat"><div class="k">Довжина різу</div><div class="v">${(entry.cutLen/1000).toFixed(2)} м</div></div>
             <div class="stat no-wh-print"><div class="k">Ціна 1 врізки</div><div class="v">${entry.piercePrice ? entry.piercePrice + ' грн' : '—'}</div></div>
@@ -1163,7 +1179,14 @@ function renderResultSheet(report) {
         </div>`;
         r.sheets.forEach((s, i) => {
             const m = entry.metrics[i];
-            bodyHtml += `<div class="bar"><div class="bar-head"><span><b>Лист ${esc(p.name)}${p.thickness ? ' ' + p.thickness + 'мм' : ''} №${i+1}</b> · ${s.placements.length} дет.</span><span>врізок ${m.pierces} · різ ${(m.cutLen/1000).toFixed(2)} м</span></div>${renderSheetSvg(s, r.sheetW, r.sheetH)}</div>`;
+            const soldArea = (m.soldH * r.sheetW / 1e6).toFixed(2);
+            bodyHtml += `<div class="bar">
+                <div class="bar-head">
+                    <span><b>Лист ${esc(p.name)}${p.thickness ? ' ' + p.thickness + 'мм' : ''} №${i+1}</b> · ${s.placements.length} дет.</span>
+                    <span>продано <b>${r.sheetW}×${Math.round(m.soldH)}</b> · ${soldArea} м² · врізок ${m.pierces} · різ ${(m.cutLen/1000).toFixed(2)} м</span>
+                </div>
+                ${renderSheetSvg(s, r.sheetW, r.sheetH)}
+            </div>`;
         });
         if (r.unplaced && r.unplaced.length) {
             const list = r.unplaced.map(u => `${u.w}×${u.h}`).join(', ');
