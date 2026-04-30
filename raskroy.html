@@ -1079,7 +1079,7 @@ function renderResult(report) {
         entry.sawCuts = r.bars.reduce((s, b) => {
             const n = b.cuts.length;
             if (n === 0) return s;
-            return s + (n - 1) + (b.tail > 0 ? 1 : 0);
+            return s + (n - 1) + (b.tail > 0 ? 1 : 0) + (b.stockable > 0 && b.waste > 0 ? 1 : 0);
         }, 0);
         entry.cost = entry.sawCuts * (+entry.profile.cutPrice || 0);
     });
