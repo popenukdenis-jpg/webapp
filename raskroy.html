@@ -1274,16 +1274,16 @@ function renderBarSvg(b, num, barLen, kerf, profileName) {
             x += kw;
         }
     });
-    if (b.stockable > 0) {
-        const sw = b.stockable * scale;
-        svg += `<rect class="tail-rem" x="${x.toFixed(2)}" y="2" width="${sw.toFixed(2)}" height="${H - 4}"/>`;
-        if (sw > 32) svg += `<text x="${(x + sw / 2).toFixed(2)}" y="${(H / 2).toFixed(2)}" text-anchor="middle" dominant-baseline="central">${Math.round(b.stockable)}</text>`;
-        x += sw;
-    }
     if (b.waste > 0) {
         const ww = b.waste * scale;
         svg += `<rect class="tail-waste" x="${x.toFixed(2)}" y="2" width="${ww.toFixed(2)}" height="${H - 4}"/>`;
         if (ww > 32) svg += `<text x="${(x + ww / 2).toFixed(2)}" y="${(H / 2).toFixed(2)}" text-anchor="middle" dominant-baseline="central">${Math.round(b.waste)}</text>`;
+        x += ww;
+    }
+    if (b.stockable > 0) {
+        const sw = b.stockable * scale;
+        svg += `<rect class="tail-rem" x="${x.toFixed(2)}" y="2" width="${sw.toFixed(2)}" height="${H - 4}"/>`;
+        if (sw > 32) svg += `<text x="${(x + sw / 2).toFixed(2)}" y="${(H / 2).toFixed(2)}" text-anchor="middle" dominant-baseline="central">${Math.round(b.stockable)}</text>`;
     }
     svg += `</svg>`;
 
