@@ -247,15 +247,8 @@ td.act { width: 32px; text-align: center; }
             <label>№ замовлення</label>
             <input type="text" id="fOrder" placeholder="">
         </div>
-        <div class="field">
-            <label>Ширина різу (kerf), мм</label>
-            <input type="number" id="fKerf" min="0" step="0.5" placeholder="0">
-        </div>
-        <div class="field">
-            <label>Мін. діловий залишок, мм</label>
-            <input type="number" id="fMinRem" min="0" step="10" placeholder="0">
-        </div>
     </div>
+    <div class="sub" style="margin-top:8px; font-size:12px;">Ширина різу та мін. діловий залишок задаються для кожної номенклатури окремо.</div>
 </div>
 
 <div id="profilesContainer" class="no-print"></div>
@@ -321,12 +314,12 @@ const state = {
     resultSheet: null,
 };
 
-const STORAGE_KEY = 'raskroy.v5';
+const STORAGE_KEY = 'raskroy.v6';
 let nextProfId = 1;
 let nextSheetId = 1;
 
 function newProfile(name = '', barLen = 12000) {
-    return { id: nextProfId++, name, barLen, cutPrice: 0, collapsed: false, cuts: [{ length: 0, qty: 0 }] };
+    return { id: nextProfId++, name, barLen, kerf: 0, minRem: 0, cutPrice: 0, collapsed: false, cuts: [{ length: 0, qty: 0 }] };
 }
 
 function newSheet(sheetW = 1500, sheetH = 6000, thickness = 0) {
@@ -340,7 +333,7 @@ function sheetName(sh) {
 function save() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify({
         activeTab: state.activeTab,
-        customer: state.customer, order: state.order, kerf: state.kerf, minRem: state.minRem, profiles: state.profiles,
+        customer: state.customer, order: state.order, profiles: state.profiles,
         customerSheet: state.customerSheet, orderSheet: state.orderSheet, sheets: state.sheets,
     })); } catch (e) {}
 }
@@ -351,11 +344,13 @@ function load() {
             state.activeTab = s.activeTab || 'linear';
             state.customer = s.customer || '';
             state.order = s.order || '';
-            state.kerf = s.kerf ?? 0;
-            state.minRem = s.minRem ?? 0;
             if (Array.isArray(s.profiles)) {
                 state.profiles = s.profiles;
-                for (const p of state.profiles) if (p.id >= nextProfId) nextProfId = p.id + 1;
+                for (const p of state.profiles) {
+                    if (p.id >= nextProfId) nextProfId = p.id + 1;
+                    if (p.kerf === undefined) p.kerf = 0;
+                    if (p.minRem === undefined) p.minRem = 0;
+                }
             }
             state.customerSheet = s.customerSheet || '';
             state.orderSheet = s.orderSheet || '';
@@ -365,16 +360,44 @@ function load() {
             }
             return;
         }
-        // миграция с v4: переносим линейные профили, листовые номенклатуры начинаем заново
+        // миграция с v5: глобальные kerf/minRem переносим в каждый профиль
+        const v5 = JSON.parse(localStorage.getItem('raskroy.v5') || 'null');
+        if (v5) {
+            state.activeTab = v5.activeTab || 'linear';
+            state.customer = v5.customer || '';
+            state.order = v5.order || '';
+            const gKerf = v5.kerf ?? 0;
+            const gMinRem = v5.minRem ?? 0;
+            if (Array.isArray(v5.profiles)) {
+                state.profiles = v5.profiles;
+                for (const p of state.profiles) {
+                    if (p.id >= nextProfId) nextProfId = p.id + 1;
+                    if (p.kerf === undefined) p.kerf = gKerf;
+                    if (p.minRem === undefined) p.minRem = gMinRem;
+                }
+            }
+            state.customerSheet = v5.customerSheet || '';
+            state.orderSheet = v5.orderSheet || '';
+            if (Array.isArray(v5.sheets)) {
+                state.sheets = v5.sheets;
+                for (const sh of state.sheets) if (sh.id >= nextSheetId) nextSheetId = sh.id + 1;
+            }
+            return;
+        }
+        // миграция с v4
         const v4 = JSON.parse(localStorage.getItem('raskroy.v4') || 'null');
         if (v4) {
             state.activeTab = v4.activeTab || 'linear';
             state.order = v4.order || '';
-            state.kerf = v4.kerf ?? 0;
-            state.minRem = v4.minRem ?? 0;
+            const gKerf = v4.kerf ?? 0;
+            const gMinRem = v4.minRem ?? 0;
             if (Array.isArray(v4.profiles)) {
                 state.profiles = v4.profiles;
-                for (const p of state.profiles) if (p.id >= nextProfId) nextProfId = p.id + 1;
+                for (const p of state.profiles) {
+                    if (p.id >= nextProfId) nextProfId = p.id + 1;
+                    if (p.kerf === undefined) p.kerf = gKerf;
+                    if (p.minRem === undefined) p.minRem = gMinRem;
+                }
             }
             state.orderSheet = v4.orderSheet || '';
             return;
@@ -408,10 +431,11 @@ function load() {
 
 // === Рендер блоков номенклатур ===
 function profileHtml(p, idx) {
-    const lenButtons = [6000, 12000].map(l =>
-        `<button data-len="${l}" class="${p.barLen === l ? 'active' : ''}">${l / 1000} м</button>`
-    ).join('') + `<button data-len="custom" class="${(p.barLen !== 6000 && p.barLen !== 12000) ? 'active' : ''}">другое</button>`;
-    const isCustom = (p.barLen !== 6000 && p.barLen !== 12000);
+    const isCustomLen = (p.barLen !== 6000 && p.barLen !== 12000);
+    const lenOptions = `
+        <option value="6000" ${p.barLen === 6000 ? 'selected' : ''}>6 м</option>
+        <option value="12000" ${p.barLen === 12000 ? 'selected' : ''}>12 м</option>
+        <option value="custom" ${isCustomLen ? 'selected' : ''}>інший</option>`;
     const rows = p.cuts.map((c, i) => `
         <tr>
             <td style="color:#6b7280; font-variant-numeric:tabular-nums; width:40px;">${i + 1}</td>
@@ -435,9 +459,26 @@ function profileHtml(p, idx) {
                     ${LINEAR_PROFILES.map(name => `<div class="combo-item" data-value="${esc(name)}">${esc(name)}</div>`).join('')}
                 </div>
             </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+                <span style="font-size:12px;color:#6b7280;">Ширина різу</span>
+                <div style="position:relative;display:inline-block;">
+                    <input type="number" min="0" step="1" value="${p.kerf || ''}" data-kerf placeholder="" style="width:80px;padding:6px 28px 6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:16px;text-align:right;">
+                    <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:#9ca3af;font-size:13px;">мм</span>
+                </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+                <span style="font-size:12px;color:#6b7280;">Мін. залишок</span>
+                <div style="position:relative;display:inline-block;">
+                    <input type="number" min="0" step="10" value="${p.minRem || ''}" data-min-rem placeholder="" style="width:80px;padding:6px 28px 6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:16px;text-align:right;">
+                    <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:#9ca3af;font-size:13px;">мм</span>
+                </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+                <span style="font-size:12px;color:#6b7280;">Довжина</span>
+                <select data-len style="padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:16px;font-family:inherit;background:#fff;">${lenOptions}</select>
+            </div>
+            ${isCustomLen ? `<input type="number" min="100" step="1" value="${p.barLen}" data-custom-len style="width:90px; padding:6px 8px; border:1px solid #d1d5db; border-radius:6px;">` : ''}
             <span class="nom-meta">${totalCuts ? totalCuts + ' відр.' : '—'}</span>
-            <div class="toggle" data-len-toggle>${lenButtons}</div>
-            ${isCustom ? `<input type="number" min="100" step="1" value="${p.barLen}" data-custom-len style="width:90px; padding:6px 8px; border:1px solid #d1d5db; border-radius:6px;">` : ''}
             <button class="nom-del" data-del-prof title="Видалити номенклатуру">✕</button>
         </div>
         <div class="nom-body ${p.collapsed ? 'hidden' : ''}">
@@ -487,6 +528,8 @@ document.getElementById('profilesContainer').addEventListener('input', e => {
         const v = parseInt(t.value, 10) || 0; if (v > 0) { p.barLen = v; save(); }
         return;
     }
+    if (t.matches('[data-kerf]')) { p.kerf = parseInt(t.value, 10) || 0; save(); return; }
+    if (t.matches('[data-min-rem]')) { p.minRem = parseInt(t.value, 10) || 0; save(); return; }
     if (t.matches('[data-ci]')) {
         const ci = +t.dataset.ci, k = t.dataset.k;
         p.cuts[ci][k] = parseInt(t.value, 10) || 0;
@@ -496,6 +539,17 @@ document.getElementById('profilesContainer').addEventListener('input', e => {
         if (meta) meta.textContent = total ? total + ' отр.' : '—';
         save();
     }
+});
+
+// Изменение длины заготовки через select
+document.getElementById('profilesContainer').addEventListener('change', e => {
+    const t = e.target;
+    if (!t.matches('[data-len]')) return;
+    const p = findProfile(t); if (!p) return;
+    const v = t.value;
+    if (v === 'custom') { p.barLen = (p.barLen === 6000 || p.barLen === 12000) ? 11700 : p.barLen; }
+    else { p.barLen = parseInt(v, 10); }
+    renderProfiles(); save();
 });
 
 // Combobox for linear profile names: focus opens, mousedown commits, keys navigate
@@ -561,13 +615,6 @@ document.getElementById('profilesContainer').addEventListener('click', e => {
         }
         return;
     }
-    const lenBtn = t.closest('[data-len-toggle] button');
-    if (lenBtn) {
-        const v = lenBtn.dataset.len;
-        if (v === 'custom') { p.barLen = (p.barLen === 6000 || p.barLen === 12000) ? 11700 : p.barLen; }
-        else { p.barLen = parseInt(v, 10); }
-        renderProfiles(); save(); return;
-    }
     const delCut = t.closest('[data-del-cut]');
     if (delCut) { p.cuts.splice(+delCut.dataset.delCut, 1); renderProfiles(); save(); return; }
     if (t.closest('[data-add-cut]')) { p.cuts.push({ length: 0, qty: 0 }); renderProfiles(); save(); return; }
@@ -580,13 +627,9 @@ document.getElementById('profilesContainer').addEventListener('click', e => {
 // === Параметры заказа ===
 const fCustomer = document.getElementById('fCustomer');
 const fOrder = document.getElementById('fOrder');
-const fKerf = document.getElementById('fKerf');
-const fMinRem = document.getElementById('fMinRem');
 
 fCustomer.addEventListener('input', () => { state.customer = fCustomer.value; save(); });
 fOrder.addEventListener('input', () => { state.order = fOrder.value; save(); });
-fKerf.addEventListener('input', () => { state.kerf = parseFloat(fKerf.value) || 0; save(); });
-fMinRem.addEventListener('input', () => { state.minRem = parseInt(fMinRem.value, 10) || 0; save(); });
 
 document.getElementById('btnAddProfile').addEventListener('click', () => {
     state.profiles.push(newProfile());
@@ -597,8 +640,6 @@ function applyStateToUI() {
     fCustomer.value = state.customer || '';
     fOrder.value = state.order || '';
     fCustomerSheet.value = state.customerSheet || '';
-    fKerf.value = state.kerf || '';
-    fMinRem.value = state.minRem || '';
 
     fOrderSheet.value = state.orderSheet || '';
 
@@ -1256,7 +1297,7 @@ document.getElementById('btnCalc').addEventListener('click', () => {
         profile: p,
         collapsed: false,
         r: (p.barLen > 0 && p.cuts.some(c => (c.length | 0) > 0 && (c.qty | 0) > 0))
-            ? optimize(p.cuts, p.barLen, state.kerf, state.minRem)
+            ? optimize(p.cuts, p.barLen, p.kerf || 0, p.minRem || 0)
             : { error: 'Не задано відрізків або довжини заготовки', bars: [] },
     }));
     state.result = { results };
