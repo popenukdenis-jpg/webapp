@@ -3,14 +3,30 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Раскрой металлопроката</title>
+<title>КТ-СТАЛЬ · Раскрой металлопроката</title>
 <style>
 * { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: #f4f5f7; color: #1f2937; }
-body { padding: 16px; max-width: 1100px; margin: 0 auto; }
+html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: #0d0d0d; color: #1f2937; }
+body { padding: 0; max-width: none; margin: 0; }
+.page { padding: 16px; max-width: 1100px; margin: 0 auto; }
 h1 { font-size: 22px; margin: 0 0 4px 0; }
 h2 { font-size: 15px; margin: 0 0 10px 0; color: #374151; text-transform: uppercase; letter-spacing: 0.5px; }
 .sub { color: #6b7280; font-size: 13px; margin-bottom: 18px; }
+
+.brand { background: #0d0d0d; color: #fff; padding: 14px 28px; display: flex; align-items: center; gap: 16px; border-bottom: 4px solid #F5C518; }
+.brand .logo { display: inline-flex; align-items: center; gap: 12px; text-decoration: none; color: #fff; }
+.brand .logo-icon { width: 38px; height: 38px; flex: 0 0 auto; }
+.brand .logo-name { font-size: 22px; font-weight: 800; color: #fff; letter-spacing: 1.5px; }
+.brand .divider { width: 1px; height: 28px; background: #2a2a2a; margin: 0 4px; }
+.brand .app-name { font-size: 13px; color: #d1d5db; text-transform: uppercase; letter-spacing: 1.5px; }
+.brand .spacer { flex: 1; }
+.brand .slogan { font-size: 12px; color: #9ca3af; line-height: 1.4; text-align: right; }
+.brand .slogan b { color: #F5C518; font-weight: 600; }
+@media (max-width: 720px) {
+    .brand { padding: 10px 14px; gap: 10px; flex-wrap: wrap; }
+    .brand .slogan { display: none; }
+    .brand .app-name { font-size: 12px; }
+}
 
 .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px 18px; margin-bottom: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
 
@@ -21,7 +37,7 @@ h2 { font-size: 15px; margin: 0 0 10px 0; color: #374151; text-transform: upperc
     padding: 7px 10px; border: 1px solid #d1d5db; border-radius: 6px;
     font-size: 14px; font-family: inherit; min-width: 80px;
 }
-.field input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+.field input:focus { outline: none; border-color: #F5C518; box-shadow: 0 0 0 3px rgba(245,197,24,0.25); }
 
 .toggle { display: inline-flex; border: 1px solid #d1d5db; border-radius: 6px; overflow: hidden; }
 .toggle button {
@@ -29,14 +45,14 @@ h2 { font-size: 15px; margin: 0 0 10px 0; color: #374151; text-transform: upperc
     font-size: 14px; font-family: inherit; color: #374151; border-right: 1px solid #d1d5db;
 }
 .toggle button:last-child { border-right: none; }
-.toggle button.active { background: #3b82f6; color: #fff; }
+.toggle button.active { background: #F5C518; color: #0d0d0d; font-weight: 600; }
 
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
 th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #f1f3f5; }
 th { font-weight: 600; font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.3px; }
 td input { width: 100%; padding: 5px 7px; border: 1px solid transparent; border-radius: 4px; font-size: 14px; font-family: inherit; background: transparent; }
 td input:hover { border-color: #e5e7eb; }
-td input:focus { outline: none; border-color: #3b82f6; background: #fff; box-shadow: 0 0 0 2px rgba(59,130,246,0.15); }
+td input:focus { outline: none; border-color: #F5C518; background: #fff; box-shadow: 0 0 0 2px rgba(245,197,24,0.25); }
 td.num input { text-align: right; font-variant-numeric: tabular-nums; }
 td.act { width: 32px; text-align: center; }
 .del { background: none; border: none; cursor: pointer; color: #ef4444; font-size: 16px; padding: 2px 6px; border-radius: 4px; }
@@ -44,11 +60,11 @@ td.act { width: 32px; text-align: center; }
 
 .btn { padding: 8px 14px; border: 1px solid #d1d5db; background: #fff; border-radius: 6px; cursor: pointer; font-size: 14px; font-family: inherit; color: #374151; }
 .btn:hover { background: #f9fafb; }
-.btn.primary { background: #3b82f6; color: #fff; border-color: #3b82f6; }
-.btn.primary:hover { background: #2563eb; }
+.btn.primary { background: #F5C518; color: #0d0d0d; border-color: #F5C518; font-weight: 600; }
+.btn.primary:hover { background: #e0b414; border-color: #e0b414; }
 .btn.big { padding: 12px 22px; font-size: 16px; font-weight: 600; }
-.btn.ghost { background: transparent; border-color: transparent; color: #3b82f6; }
-.btn.ghost:hover { background: #eff6ff; }
+.btn.ghost { background: transparent; border-color: transparent; color: #b8860b; }
+.btn.ghost:hover { background: #fef9c3; }
 
 .toolbar { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 
@@ -64,7 +80,7 @@ td.act { width: 32px; text-align: center; }
 .stat.bad .v { color: #dc2626; }
 .stat input.price-input { width: 100%; padding: 2px 6px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 15px; font-weight: 600; font-family: inherit; font-variant-numeric: tabular-nums; color: #111827; background: #fff; box-sizing: border-box; }
 .stat input.price-input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.15); }
-.stat.cost .v { color: #7c3aed; }
+.stat.cost .v { color: #b8860b; }
 
 .bar { margin: 14px 0; }
 .bar-head { display: flex; justify-content: space-between; font-size: 13px; color: #374151; margin-bottom: 4px; font-variant-numeric: tabular-nums; }
@@ -87,7 +103,10 @@ td.act { width: 32px; text-align: center; }
     #result { display: block !important; }
     .bar { page-break-inside: avoid; break-inside: avoid; }
     .card, .result-block { box-shadow: none; border: none; padding: 0; margin-bottom: 8px; page-break-inside: avoid; break-inside: avoid; }
-    .result-head { background: #fff; border-bottom: 1px solid #111; padding: 4px 0; cursor: default; page-break-after: avoid; break-after: avoid; }
+    .result-head, .cv-head { background: #fff !important; color: #111 !important; border-bottom: 2px solid #111 !important; padding: 4px 0; cursor: default; page-break-after: avoid; break-after: avoid; }
+    .result-head .title, .cv-head .title { color: #111 !important; }
+    .result-head .meta, .cv-head .meta { color: #555 !important; }
+    .result-head .badge, .cv-head .badge { background: #111 !important; color: #fff !important; }
     .result-head .caret { display: none; }
     .result-body, .result-body.hidden { display: block !important; padding: 4px 0; }
     .summary { page-break-inside: avoid; break-inside: avoid; }
@@ -117,10 +136,10 @@ td.act { width: 32px; text-align: center; }
 
 .client-view { display: none; }
 .cv-block { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); overflow: hidden; page-break-inside: avoid; break-inside: avoid; }
-.cv-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: #eff6ff; border-bottom: 1px solid #dbeafe; }
-.cv-head .title { font-weight: 600; font-size: 15px; color: #111827; }
-.cv-head .badge { background: #1d4ed8; color: #fff; font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 999px; }
-.cv-head .meta { font-size: 12px; color: #6b7280; margin-left: auto; }
+.cv-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: #0d0d0d; color: #fff; border-bottom: 3px solid #F5C518; }
+.cv-head .title { font-weight: 700; font-size: 15px; color: #fff; letter-spacing: 0.3px; }
+.cv-head .badge { background: #F5C518; color: #0d0d0d; font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 999px; }
+.cv-head .meta { font-size: 12px; color: #9ca3af; margin-left: auto; }
 .cv-body { padding: 14px 16px; }
 .cv-tbl { border-collapse: collapse; margin-top: 10px; }
 .cv-tbl th, .cv-tbl td { border: 1px solid #d1d5db; padding: 6px 14px; font-size: 13px; }
@@ -134,7 +153,7 @@ td.act { width: 32px; text-align: center; }
 .nom-head .caret { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; user-select: none; color: #374151; font-size: 18px; font-weight: 700; line-height: 1; border: 1px solid #d1d5db; border-radius: 4px; background: #fff; flex: 0 0 auto; }
 .nom-head .caret:hover { background: #f3f4f6; }
 .nom-head .name-input { flex: 1; min-width: 220px; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; font-family: inherit; background: #fff; }
-.nom-head .name-input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+.nom-head .name-input:focus { outline: none; border-color: #F5C518; box-shadow: 0 0 0 3px rgba(245,197,24,0.25); }
 .nom-head .nom-meta { font-size: 12px; color: #6b7280; margin-right: auto; }
 .nom-head .nom-del { background: none; border: none; cursor: pointer; color: #ef4444; font-size: 18px; padding: 4px 8px; border-radius: 4px; }
 .nom-head .nom-del:hover { background: #fee2e2; }
@@ -144,21 +163,36 @@ td.act { width: 32px; text-align: center; }
 .add-nom { display: flex; justify-content: center; margin: 4px 0 14px; }
 
 .result-block { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); overflow: hidden; }
-.result-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: #eff6ff; border-bottom: 1px solid #dbeafe; cursor: pointer; user-select: none; }
-.result-head .caret { color: #1d4ed8; font-size: 18px; font-weight: 700; line-height: 1; width: 22px; display: inline-flex; align-items: center; justify-content: center; }
-.result-head .title { font-weight: 600; font-size: 15px; color: #111827; }
-.result-head .badge { background: #1d4ed8; color: #fff; font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 999px; }
-.result-head .meta { font-size: 12px; color: #6b7280; margin-left: auto; }
+.result-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: #0d0d0d; color: #fff; border-bottom: 3px solid #F5C518; cursor: pointer; user-select: none; }
+.result-head .caret { color: #F5C518; font-size: 18px; font-weight: 700; line-height: 1; width: 22px; display: inline-flex; align-items: center; justify-content: center; }
+.result-head .title { font-weight: 700; font-size: 15px; color: #fff; letter-spacing: 0.3px; }
+.result-head .badge { background: #F5C518; color: #0d0d0d; font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 999px; }
+.result-head .meta { font-size: 12px; color: #9ca3af; margin-left: auto; }
 .result-body { padding: 14px 16px; }
 .result-body.hidden { display: none; }
 </style>
 </head>
 <body>
 
-<header>
-    <h1>Раскрой металлопроката</h1>
-    <div class="sub">Линейный 1D-раскрой с минимизацией остатков · карта реза для склада</div>
+<header class="brand no-print">
+    <a class="logo" href="https://kt-stal.com.ua" target="_blank" rel="noopener">
+        <svg class="logo-icon" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+            <rect x="2"  y="26" width="10" height="10" rx="1" fill="#F5C518"/>
+            <rect x="14" y="26" width="10" height="10" rx="1" fill="#F5C518"/>
+            <rect x="26" y="26" width="10" height="10" rx="1" fill="#F5C518"/>
+            <rect x="8"  y="14" width="10" height="10" rx="1" fill="#F5C518"/>
+            <rect x="20" y="14" width="10" height="10" rx="1" fill="#F5C518"/>
+            <rect x="14" y="2"  width="10" height="10" rx="1" fill="#F5C518"/>
+        </svg>
+        <span class="logo-name">КТ-СТАЛЬ</span>
+    </a>
+    <div class="divider"></div>
+    <div class="app-name">Раскрой металлопроката</div>
+    <div class="spacer"></div>
+    <div class="slogan"><b>Продаж металопрокату</b><br>по всій Україні</div>
 </header>
+
+<div class="page">
 
 <div class="card no-print">
     <h2>Заказ</h2>
@@ -189,6 +223,8 @@ td.act { width: 32px; text-align: center; }
 </div>
 
 <div id="result"></div>
+
+</div><!-- /.page -->
 
 <script>
 // === Состояние ===
