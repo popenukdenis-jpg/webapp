@@ -301,9 +301,224 @@ function applyStateToUI() {
     }
 }
 
-// === Расчёт (заглушка — будет в шаге 2) ===
+// === Оптимизатор ===
+// Алгоритм: «best pattern next» — на каждой итерации находим оптимальное
+// заполнение одной заготовки через 0/1-knapsack DP по длине.
+// Хитрость с резом (kerf): к каждому отрезку добавляем kerf, к ёмкости тоже +kerf —
+// так n отрезков на одной заготовке корректно учитывают (n-1) резов между ними.
+
+function bestPattern(items, capacity) {
+    const n = items.length;
+    const cap = capacity | 0;
+    if (n === 0 || cap <= 0) return { picks: [], sum: 0 };
+    const dp = new Int32Array(cap + 1);
+    const take = new Uint8Array(n * (cap + 1));
+    for (let i = 0; i < n; i++) {
+        const w = items[i].w;
+        if (w > cap) continue;
+        const off = i * (cap + 1);
+        for (let c = cap; c >= w; c--) {
+            const v = dp[c - w] + w;
+            if (v > dp[c]) { dp[c] = v; take[off + c] = 1; }
+        }
+    }
+    let bestC = 0, bestV = 0;
+    for (let c = 0; c <= cap; c++) if (dp[c] > bestV) { bestV = dp[c]; bestC = c; }
+    let c = bestC;
+    const picks = [];
+    for (let i = n - 1; i >= 0; i--) {
+        if (take[i * (cap + 1) + c]) { picks.push(i); c -= items[i].w; }
+    }
+    return { picks, sum: bestV };
+}
+
+function optimize(cuts, barLen, kerf, minRem) {
+    const items = [];
+    let nid = 0;
+    cuts.forEach((c, ci) => {
+        const len = c.length | 0, qty = c.qty | 0;
+        if (len <= 0 || qty <= 0) return;
+        for (let q = 0; q < qty; q++) items.push({ id: nid++, len, mark: c.mark || '', srcIdx: ci });
+    });
+    if (items.length > 1500) return { error: `Слишком много отрезков (${items.length}). Лимит 1500 — разбейте на части.` };
+    if (items.length === 0) return { error: 'Не задано ни одного отрезка с длиной и количеством.' };
+
+    const placeable = [], unplaced = [];
+    for (const it of items) (it.len > barLen ? unplaced : placeable).push(it);
+
+    const bars = [];
+    let remaining = placeable.slice();
+    const cap = (barLen + kerf) | 0;
+    let safety = remaining.length + 5;
+
+    while (remaining.length > 0 && safety-- > 0) {
+        const dpItems = remaining.map((it, idx) => ({ idx, w: (it.len + kerf) | 0 }));
+        const pat = bestPattern(dpItems, cap);
+        if (pat.picks.length === 0) break;
+        const placedSet = new Set(pat.picks);
+        const placed = pat.picks.map(i => remaining[i]).sort((a, b) => b.len - a.len);
+        const cutsLen = placed.reduce((s, it) => s + it.len, 0);
+        const kerfTot = Math.max(0, placed.length - 1) * kerf;
+        const tail = Math.max(0, barLen - cutsLen - kerfTot);
+        bars.push({ cuts: placed, usedLen: cutsLen, kerfTotal: kerfTot, tail, isRemnant: tail >= minRem });
+        remaining = remaining.filter((_, idx) => !placedSet.has(idx));
+    }
+
+    const totalBarsLen = bars.length * barLen;
+    const totalCutsLen = bars.reduce((s, b) => s + b.usedLen, 0);
+    const totalKerf = bars.reduce((s, b) => s + b.kerfTotal, 0);
+    const totalRemnant = bars.filter(b => b.isRemnant).reduce((s, b) => s + b.tail, 0);
+    const totalWaste = bars.filter(b => !b.isRemnant).reduce((s, b) => s + b.tail, 0) + totalKerf;
+
+    return { bars, unplaced, totalBarsLen, totalCutsLen, totalKerf, totalRemnant, totalWaste, barLen, kerf, minRem };
+}
+
+// === Утилиты ===
+function esc(s) { return String(s ?? '').replace(/[<>&"']/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c])); }
+function fmtMm(mm) { return mm >= 1000 ? (mm / 1000).toFixed(2).replace(/\.?0+$/, '') + ' м' : Math.round(mm) + ' мм'; }
+function pct(p) { return p.toFixed(1) + '%'; }
+
+// === Рендер результата ===
+function renderResult(r) {
+    const root = document.getElementById('result');
+    if (!r) { root.classList.remove('show'); root.innerHTML = ''; return; }
+    if (r.error) {
+        root.classList.add('show');
+        root.innerHTML = `<div class="card"><div class="unplaced">${r.error}</div></div>`;
+        return;
+    }
+    const wastePct = r.totalBarsLen > 0 ? (r.totalWaste / r.totalBarsLen * 100) : 0;
+    const usedPct  = r.totalBarsLen > 0 ? (r.totalCutsLen / r.totalBarsLen * 100) : 0;
+    const dateStr = new Date().toLocaleDateString('ru-RU');
+
+    let html = '';
+    html += `<div class="print-header">
+        <h1>Карта раскроя</h1>
+        <div class="meta">Профиль: <b>${esc(state.profile) || '—'}</b> · Заказ: <b>${esc(state.order) || '—'}</b> · Заготовка: <b>${fmtMm(r.barLen)}</b> · Рез: ${r.kerf} мм · Дата: ${dateStr}</div>
+    </div>`;
+
+    html += `<div class="card"><h2 class="no-print">Итог</h2>
+        <div class="summary">
+            <div class="stat"><div class="k">Хлыстов</div><div class="v">${r.bars.length}</div></div>
+            <div class="stat"><div class="k">Длина металла</div><div class="v">${fmtMm(r.totalBarsLen)}</div></div>
+            <div class="stat good"><div class="k">В деталях</div><div class="v">${pct(usedPct)}</div></div>
+            <div class="stat warn"><div class="k">Обрезки на склад</div><div class="v">${fmtMm(r.totalRemnant)}</div></div>
+            <div class="stat bad"><div class="k">Отходы (с резом)</div><div class="v">${pct(wastePct)}</div></div>
+        </div>
+        <div class="legend no-print">
+            <span><i style="background:#bfdbfe;border-color:#1d4ed8;"></i>отрез</span>
+            <span><i style="background:#fde68a;border-color:#b45309;"></i>деловой обрезок ≥ ${r.minRem} мм</span>
+            <span><i style="background:#fecaca;border-color:#b91c1c;"></i>отход</span>
+            <span><i style="background:#374151;border-color:#374151;"></i>пропил (${r.kerf} мм)</span>
+        </div>
+    </div>`;
+
+    html += `<div class="card"><h2 class="no-print">Карта реза</h2>`;
+    r.bars.forEach((b, i) => { html += renderBarSvg(b, i + 1, r.barLen, r.kerf); });
+    html += `</div>`;
+
+    if (r.unplaced.length) {
+        const list = r.unplaced.map(u => `${u.len} мм${u.mark ? ` (${esc(u.mark)})` : ''}`).join(', ');
+        html += `<div class="card"><div class="unplaced"><b>Не помещаются в заготовку ${fmtMm(r.barLen)}:</b> ${r.unplaced.length} шт. — ${list}</div></div>`;
+    }
+
+    html += `<div class="footer-act no-print">
+        <button class="btn primary" id="btnPrint">🖨 Печать карты</button>
+        <button class="btn" id="btnCsv">Экспорт CSV</button>
+        <button class="btn ghost" id="btnHide">Скрыть</button>
+    </div>`;
+
+    root.classList.add('show');
+    root.innerHTML = html;
+    document.getElementById('btnPrint').addEventListener('click', () => window.print());
+    document.getElementById('btnCsv').addEventListener('click', () => exportCsv(r));
+    document.getElementById('btnHide').addEventListener('click', () => {
+        root.classList.remove('show'); root.innerHTML = ''; window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+}
+
+function renderBarSvg(b, num, barLen, kerf) {
+    const W = 1000, H = 38;
+    const scale = W / barLen;
+    const palette = ['#bfdbfe','#a7f3d0','#fde68a','#fbcfe8','#c7d2fe','#fed7aa','#bae6fd','#d9f99d','#fecaca','#e9d5ff'];
+    const colorByKey = new Map();
+    let ci = 0;
+    let x = 0;
+    let svg = `<svg class="bar-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">`;
+    svg += `<rect x="0" y="2" width="${W}" height="${H - 4}" fill="#fff" stroke="#9ca3af"/>`;
+    b.cuts.forEach((c, idx) => {
+        const w = c.len * scale;
+        const key = c.mark || ('L' + c.len);
+        if (!colorByKey.has(key)) { colorByKey.set(key, palette[ci % palette.length]); ci++; }
+        const fill = colorByKey.get(key);
+        svg += `<rect class="cut" x="${x.toFixed(2)}" y="2" width="${w.toFixed(2)}" height="${H - 4}" fill="${fill}"/>`;
+        if (w > 30) svg += `<text x="${(x + w / 2).toFixed(2)}" y="${(H / 2 + 4).toFixed(2)}" text-anchor="middle">${c.len}</text>`;
+        x += w;
+        if (idx < b.cuts.length - 1 && kerf > 0) {
+            const kw = Math.max(0.6, kerf * scale);
+            svg += `<rect x="${x.toFixed(2)}" y="2" width="${kw.toFixed(2)}" height="${H - 4}" fill="#374151"/>`;
+            x += kw;
+        }
+    });
+    if (b.tail > 0) {
+        const tw = b.tail * scale;
+        svg += `<rect class="${b.isRemnant ? 'tail-rem' : 'tail-waste'}" x="${x.toFixed(2)}" y="2" width="${tw.toFixed(2)}" height="${H - 4}"/>`;
+        if (tw > 32) svg += `<text x="${(x + tw / 2).toFixed(2)}" y="${(H / 2 + 4).toFixed(2)}" text-anchor="middle">${Math.round(b.tail)}</text>`;
+    }
+    svg += `</svg>`;
+
+    const cutsTxt = b.cuts.map(c => `${c.len}${c.mark ? ' [' + esc(c.mark) + ']' : ''}`).join(' + ');
+    const tailLabel = b.tail <= 0 ? 'без остатка'
+        : (b.isRemnant ? `обрезок ${Math.round(b.tail)} мм → склад` : `отход ${Math.round(b.tail)} мм`);
+    return `<div class="bar">
+        <div class="bar-head">
+            <span><b>Хлыст #${num}</b> · ${b.cuts.length} отр. · ${cutsTxt}</span>
+            <span>${tailLabel}</span>
+        </div>
+        ${svg}
+    </div>`;
+}
+
+function exportCsv(r) {
+    const rows = [];
+    rows.push(['Профиль', state.profile || '']);
+    rows.push(['Заказ', state.order || '']);
+    rows.push(['Заготовка, мм', r.barLen]);
+    rows.push(['Рез, мм', r.kerf]);
+    rows.push(['Мин. обрезок, мм', r.minRem]);
+    rows.push([]);
+    rows.push(['Хлыст №', 'Отрез №', 'Длина, мм', 'Маркировка']);
+    r.bars.forEach((b, i) => {
+        b.cuts.forEach((c, j) => rows.push([i + 1, j + 1, c.len, c.mark || '']));
+        rows.push([i + 1, '', '— остаток —', `${Math.round(b.tail)} мм ${b.isRemnant ? '(деловой)' : '(отход)'}`]);
+    });
+    rows.push([]);
+    rows.push(['ИТОГО хлыстов', r.bars.length]);
+    rows.push(['Общая длина, мм', r.totalBarsLen]);
+    rows.push(['В деталях, мм', r.totalCutsLen]);
+    rows.push(['Деловых обрезков, мм', r.totalRemnant]);
+    rows.push(['Отходов (с резом), мм', r.totalWaste]);
+    const csv = rows.map(row => row.map(v => {
+        const s = String(v ?? '');
+        return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    }).join(';')).join('\r\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const name = (state.order || 'order').replace(/[^\w\-А-Яа-яЁё]/g, '_');
+    a.href = url; a.download = `raskroy_${name}_${Date.now()}.csv`; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
 document.getElementById('btnCalc').addEventListener('click', () => {
-    alert('Оптимизатор будет добавлен в шаге 2.');
+    if (!state.cuts.some(c => (c.length | 0) > 0 && (c.qty | 0) > 0)) {
+        alert('Добавьте хотя бы один отрезок с длиной и количеством.'); return;
+    }
+    if (!(state.barLen > 0)) { alert('Укажите длину заготовки.'); return; }
+    const r = optimize(state.cuts, state.barLen, state.kerf, state.minRem);
+    state.result = r;
+    renderResult(r);
+    setTimeout(() => document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
 });
 
 // === Init ===
