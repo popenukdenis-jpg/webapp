@@ -144,7 +144,6 @@ td.act { width: 32px; text-align: center; }
                 <th style="width:40px;">№</th>
                 <th>Длина, мм</th>
                 <th>Кол-во</th>
-                <th>Маркировка / позиция</th>
                 <th></th>
             </tr>
         </thead>
@@ -200,14 +199,13 @@ function renderCuts() {
             <td style="color:#6b7280; font-variant-numeric:tabular-nums;">${i + 1}</td>
             <td class="num"><input type="number" min="1" step="1" value="${c.length || ''}" data-i="${i}" data-k="length"></td>
             <td class="num"><input type="number" min="1" step="1" value="${c.qty || ''}" data-i="${i}" data-k="qty"></td>
-            <td><input type="text" value="${c.mark || ''}" data-i="${i}" data-k="mark" placeholder="—"></td>
             <td class="act"><button class="del" data-del="${i}" title="Удалить">✕</button></td>
         `;
         tb.appendChild(tr);
     });
     if (state.cuts.length === 0) {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td colspan="5" style="color:#9ca3af; text-align:center; padding: 16px;">Добавьте строки кнопкой ниже</td>`;
+        tr.innerHTML = `<td colspan="4" style="color:#9ca3af; text-align:center; padding: 16px;">Добавьте строки кнопкой ниже</td>`;
         tb.appendChild(tr);
     }
 }
