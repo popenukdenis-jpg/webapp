@@ -1235,16 +1235,16 @@ function renderResultSheet(report) {
             <div class="cv-head">
                 <span class="title">${esc(p.name) || 'Номенклатура №' + (idx + 1)}${p.thickness ? ' · ' + p.thickness + ' мм' : ''}</span>
                 ${(r && !r.error) ? `<span class="badge">${r.sheets.length} ${pluralSheets(r.sheets.length)}</span>` : ''}
-                <span class="meta">${r.sheetW}×${r.sheetH} · ${totalQty} шт.</span>
+                <span class="meta">${(r && !r.error && entry.metrics) ? entry.metrics.map(m => `${r.sheetW}×${Math.round(m.soldH)}`).join(' + ') : `${r.sheetW}×${r.sheetH}`} · ${totalQty} шт.</span>
             </div>
             <div class="cv-body">`;
         if (r && !r.error) {
             const soldArea = (entry.soldArea / 1e6).toFixed(2);
+            const soldDims = entry.metrics.map(m => `${r.sheetW}×${Math.round(m.soldH)}`).join(' + ');
             cvHtml += `<div class="summary">
                 <div class="stat"><div class="k">Листів</div><div class="v">${r.sheets.length}</div></div>
-                <div class="stat"><div class="k">Лист</div><div class="v">${r.sheetW}×${r.sheetH}</div></div>
-                <div class="stat good"><div class="k">У деталях</div><div class="v">${pct(usedP)}</div></div>
-                <div class="stat warn"><div class="k">Продано клієнту</div><div class="v">${soldArea} м²</div></div>
+                <div class="stat"><div class="k">Куплено</div><div class="v" style="font-size:14px;">${soldDims}</div></div>
+                <div class="stat warn"><div class="k">Площа</div><div class="v">${soldArea} м²</div></div>
                 <div class="stat"><div class="k">Врізок</div><div class="v">${entry.pierces}</div></div>
                 <div class="stat"><div class="k">Довжина різу</div><div class="v">${(entry.cutLen/1000).toFixed(2)} м</div></div>
                 <div class="stat cost"><div class="k">Вартість різів</div><div class="v">${fmtMoney(entry.cost || 0)}</div></div>
