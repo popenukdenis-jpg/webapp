@@ -81,8 +81,9 @@ td.act { width: 32px; text-align: center; }
 
 .footer-act { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
 
+@page { size: A4; margin: 10mm; }
 @media print {
-    body { background: #fff; padding: 0; max-width: none; }
+    body { background: #fff; padding: 0; max-width: none; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .no-print { display: none !important; }
     header { display: block !important; padding: 0; margin-bottom: 8px; border-bottom: 2px solid #111; padding-bottom: 6px; }
     header h1 { font-size: 16px; margin: 0; }
