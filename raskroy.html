@@ -91,6 +91,30 @@ td.act { width: 32px; text-align: center; }
 .print-header { display: none; }
 .print-header h1 { margin-bottom: 2px; }
 .print-header .meta { font-size: 12px; color: #374151; }
+
+.nom-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); overflow: hidden; }
+.nom-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #f9fafb; border-bottom: 1px solid #e5e7eb; flex-wrap: wrap; }
+.nom-head .caret { width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; user-select: none; color: #6b7280; font-size: 14px; transition: transform .15s; flex: 0 0 auto; }
+.nom-head .caret.collapsed { transform: rotate(-90deg); }
+.nom-head .name-input { flex: 1; min-width: 220px; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; font-family: inherit; background: #fff; }
+.nom-head .name-input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+.nom-head .nom-meta { font-size: 12px; color: #6b7280; margin-right: auto; }
+.nom-head .nom-del { background: none; border: none; cursor: pointer; color: #ef4444; font-size: 18px; padding: 4px 8px; border-radius: 4px; }
+.nom-head .nom-del:hover { background: #fee2e2; }
+.nom-body { padding: 12px 14px; }
+.nom-body.hidden { display: none; }
+
+.add-nom { display: flex; justify-content: center; margin: 4px 0 14px; }
+
+.result-block { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); overflow: hidden; }
+.result-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: #eff6ff; border-bottom: 1px solid #dbeafe; cursor: pointer; user-select: none; }
+.result-head .caret { color: #1d4ed8; font-size: 14px; transition: transform .15s; }
+.result-head .caret.collapsed { transform: rotate(-90deg); }
+.result-head .title { font-weight: 600; font-size: 15px; color: #111827; }
+.result-head .badge { background: #1d4ed8; color: #fff; font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 999px; }
+.result-head .meta { font-size: 12px; color: #6b7280; margin-left: auto; }
+.result-body { padding: 14px 16px; }
+.result-body.hidden { display: none; }
 </style>
 </head>
 <body>
@@ -103,28 +127,10 @@ td.act { width: 32px; text-align: center; }
 <div class="card no-print">
     <h2>Заказ</h2>
     <div class="row">
-        <div class="field" style="flex:1; min-width: 240px;">
-            <label>Профиль / номенклатура</label>
-            <input type="text" id="fProfile" placeholder="напр. Арматура Ø12 А500С">
-        </div>
         <div class="field">
             <label>№ заказа</label>
             <input type="text" id="fOrder" placeholder="ЗМ-00123">
         </div>
-        <div class="field">
-            <label>Длина заготовки (хлыста)</label>
-            <div class="toggle" id="lenToggle">
-                <button data-len="6000">6 м</button>
-                <button data-len="12000" class="active">12 м</button>
-                <button data-len="custom">другое</button>
-            </div>
-        </div>
-        <div class="field" id="customLenWrap" style="display:none;">
-            <label>мм</label>
-            <input type="number" id="fCustomLen" min="100" step="1" value="11700">
-        </div>
-    </div>
-    <div class="row" style="margin-top:12px;">
         <div class="field">
             <label>Ширина реза (kerf), мм</label>
             <input type="number" id="fKerf" min="0" step="0.5" value="3">
@@ -136,24 +142,10 @@ td.act { width: 32px; text-align: center; }
     </div>
 </div>
 
-<div class="card no-print">
-    <h2>Отрезки</h2>
-    <table id="cutsTable">
-        <thead>
-            <tr>
-                <th style="width:40px;">№</th>
-                <th>Длина, мм</th>
-                <th>Кол-во</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody id="cutsBody"></tbody>
-    </table>
-    <div class="toolbar">
-        <button class="btn" id="btnAddCut">+ строка</button>
-        <button class="btn ghost" id="btnPreset">Пример</button>
-        <button class="btn ghost" id="btnClearCuts">Очистить</button>
-    </div>
+<div id="profilesContainer" class="no-print"></div>
+
+<div class="add-nom no-print">
+    <button class="btn" id="btnAddProfile">+ Добавить номенклатуру</button>
 </div>
 
 <div class="card no-print" style="text-align:center;">
@@ -165,138 +157,183 @@ td.act { width: 32px; text-align: center; }
 <script>
 // === Состояние ===
 const state = {
-    profile: '',
     order: '',
-    barLen: 12000,
     kerf: 3,
     minRem: 300,
-    cuts: [],   // [{length, qty, mark}]
+    profiles: [],   // [{id, name, barLen, collapsed, cuts:[{length,qty}]}]
     result: null,
 };
 
-const STORAGE_KEY = 'raskroy.v1';
+const STORAGE_KEY = 'raskroy.v2';
+let nextProfId = 1;
+
+function newProfile(name = '', barLen = 12000) {
+    return { id: nextProfId++, name, barLen, collapsed: false, cuts: [{ length: 0, qty: 1 }] };
+}
 
 function save() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        profile: state.profile, order: state.order, barLen: state.barLen,
-        kerf: state.kerf, minRem: state.minRem, cuts: state.cuts,
+        order: state.order, kerf: state.kerf, minRem: state.minRem, profiles: state.profiles,
     })); } catch (e) {}
 }
 function load() {
     try {
         const s = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-        if (s) Object.assign(state, s);
+        if (s && Array.isArray(s.profiles)) {
+            state.order = s.order || '';
+            state.kerf = s.kerf ?? 3;
+            state.minRem = s.minRem ?? 300;
+            state.profiles = s.profiles;
+            for (const p of state.profiles) if (p.id >= nextProfId) nextProfId = p.id + 1;
+            return;
+        }
+        // миграция со старой версии
+        const old = JSON.parse(localStorage.getItem('raskroy.v1') || 'null');
+        if (old) {
+            state.order = old.order || '';
+            state.kerf = old.kerf ?? 3;
+            state.minRem = old.minRem ?? 300;
+            state.profiles = [{
+                id: nextProfId++, name: old.profile || '', barLen: old.barLen || 12000,
+                collapsed: false, cuts: old.cuts || [],
+            }];
+        }
     } catch (e) {}
 }
 
-// === Отрезки: рендер таблицы ===
-function renderCuts() {
-    const tb = document.getElementById('cutsBody');
-    tb.innerHTML = '';
-    state.cuts.forEach((c, i) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td style="color:#6b7280; font-variant-numeric:tabular-nums;">${i + 1}</td>
-            <td class="num"><input type="number" min="1" step="1" value="${c.length || ''}" data-i="${i}" data-k="length"></td>
-            <td class="num"><input type="number" min="1" step="1" value="${c.qty || ''}" data-i="${i}" data-k="qty"></td>
-            <td class="act"><button class="del" data-del="${i}" title="Удалить">✕</button></td>
-        `;
-        tb.appendChild(tr);
-    });
-    if (state.cuts.length === 0) {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td colspan="4" style="color:#9ca3af; text-align:center; padding: 16px;">Добавьте строки кнопкой ниже</td>`;
-        tb.appendChild(tr);
-    }
+// === Рендер блоков номенклатур ===
+function profileHtml(p, idx) {
+    const lenButtons = [6000, 12000].map(l =>
+        `<button data-len="${l}" class="${p.barLen === l ? 'active' : ''}">${l / 1000} м</button>`
+    ).join('') + `<button data-len="custom" class="${(p.barLen !== 6000 && p.barLen !== 12000) ? 'active' : ''}">другое</button>`;
+    const isCustom = (p.barLen !== 6000 && p.barLen !== 12000);
+    const rows = p.cuts.map((c, i) => `
+        <tr>
+            <td style="color:#6b7280; font-variant-numeric:tabular-nums; width:40px;">${i + 1}</td>
+            <td class="num"><input type="number" min="1" step="1" value="${c.length || ''}" data-ci="${i}" data-k="length"></td>
+            <td class="num"><input type="number" min="1" step="1" value="${c.qty || ''}" data-ci="${i}" data-k="qty"></td>
+            <td class="act"><button class="del" data-del-cut="${i}" title="Удалить">✕</button></td>
+        </tr>
+    `).join('') || `<tr><td colspan="4" style="color:#9ca3af; text-align:center; padding:16px;">Добавьте строки кнопкой ниже</td></tr>`;
+
+    const totalCuts = p.cuts.reduce((s, c) => s + ((c.length | 0) > 0 && (c.qty | 0) > 0 ? c.qty : 0), 0);
+
+    return `<div class="nom-card" data-pid="${p.id}">
+        <div class="nom-head">
+            <span class="caret ${p.collapsed ? 'collapsed' : ''}" data-toggle>▼</span>
+            <input class="name-input" type="text" placeholder="Номенклатура (напр. Профтруба 40×40×2)" value="${esc(p.name)}" data-name>
+            <span class="nom-meta">${totalCuts ? totalCuts + ' отр.' : '—'}</span>
+            <div class="toggle" data-len-toggle>${lenButtons}</div>
+            ${isCustom ? `<input type="number" min="100" step="1" value="${p.barLen}" data-custom-len style="width:90px; padding:6px 8px; border:1px solid #d1d5db; border-radius:6px;">` : ''}
+            <button class="nom-del" data-del-prof title="Удалить номенклатуру">✕</button>
+        </div>
+        <div class="nom-body ${p.collapsed ? 'hidden' : ''}">
+            <table>
+                <thead><tr>
+                    <th style="width:40px;">№</th><th>Длина, мм</th><th>Кол-во</th><th></th>
+                </tr></thead>
+                <tbody>${rows}</tbody>
+            </table>
+            <div class="toolbar">
+                <button class="btn" data-add-cut>+ строка</button>
+                <button class="btn ghost" data-preset>Пример</button>
+                <button class="btn ghost" data-clear-cuts>Очистить</button>
+            </div>
+        </div>
+    </div>`;
 }
 
-document.getElementById('cutsBody').addEventListener('input', e => {
-    const inp = e.target;
-    if (!inp.dataset.k) return;
-    const i = +inp.dataset.i, k = inp.dataset.k;
-    state.cuts[i][k] = (k === 'mark') ? inp.value : (parseInt(inp.value, 10) || 0);
-    save();
-});
-document.getElementById('cutsBody').addEventListener('click', e => {
-    const b = e.target.closest('[data-del]');
-    if (!b) return;
-    state.cuts.splice(+b.dataset.del, 1);
-    renderCuts(); save();
-});
+function renderProfiles() {
+    const root = document.getElementById('profilesContainer');
+    if (state.profiles.length === 0) {
+        root.innerHTML = `<div class="card" style="text-align:center; color:#6b7280;">Добавьте первую номенклатуру кнопкой ниже</div>`;
+        return;
+    }
+    root.innerHTML = state.profiles.map(profileHtml).join('');
+}
 
-document.getElementById('btnAddCut').addEventListener('click', () => {
-    state.cuts.push({ length: 0, qty: 1, mark: '' });
-    renderCuts(); save();
-});
-document.getElementById('btnClearCuts').addEventListener('click', () => {
-    if (!state.cuts.length || confirm('Очистить все строки?')) {
-        state.cuts = []; renderCuts(); save();
+function findProfile(el) {
+    const card = el.closest('[data-pid]');
+    if (!card) return null;
+    const id = +card.dataset.pid;
+    return state.profiles.find(p => p.id === id);
+}
+
+document.getElementById('profilesContainer').addEventListener('input', e => {
+    const t = e.target;
+    const p = findProfile(t);
+    if (!p) return;
+    if (t.matches('[data-name]')) { p.name = t.value; save(); return; }
+    if (t.matches('[data-custom-len]')) {
+        const v = parseInt(t.value, 10) || 0; if (v > 0) { p.barLen = v; save(); }
+        return;
+    }
+    if (t.matches('[data-ci]')) {
+        const ci = +t.dataset.ci, k = t.dataset.k;
+        p.cuts[ci][k] = parseInt(t.value, 10) || 0;
+        // обновим счётчик в шапке без полного перерендера
+        const meta = t.closest('[data-pid]').querySelector('.nom-meta');
+        const total = p.cuts.reduce((s, c) => s + ((c.length | 0) > 0 && (c.qty | 0) > 0 ? c.qty : 0), 0);
+        if (meta) meta.textContent = total ? total + ' отр.' : '—';
+        save();
     }
 });
-document.getElementById('btnPreset').addEventListener('click', () => {
-    state.cuts = [
-        { length: 2400, qty: 12, mark: 'БМ-1 верх' },
-        { length: 1800, qty: 8,  mark: 'СТ-1 стойка' },
-        { length: 1500, qty: 14, mark: 'СТ-2 стойка' },
-        { length: 950,  qty: 20, mark: 'РК-1 раскос' },
-        { length: 600,  qty: 16, mark: 'УЗ-1 узел' },
-    ];
-    state.profile = state.profile || 'Профтруба 40×40×2';
-    document.getElementById('fProfile').value = state.profile;
-    renderCuts(); save();
+
+document.getElementById('profilesContainer').addEventListener('click', e => {
+    const t = e.target;
+    const p = findProfile(t);
+    if (!p) return;
+
+    if (t.closest('[data-toggle]')) { p.collapsed = !p.collapsed; renderProfiles(); save(); return; }
+    if (t.closest('[data-del-prof]')) {
+        if (state.profiles.length === 1 || confirm(`Удалить номенклатуру «${p.name || 'без названия'}»?`)) {
+            state.profiles = state.profiles.filter(x => x.id !== p.id);
+            renderProfiles(); save();
+        }
+        return;
+    }
+    const lenBtn = t.closest('[data-len-toggle] button');
+    if (lenBtn) {
+        const v = lenBtn.dataset.len;
+        if (v === 'custom') { p.barLen = (p.barLen === 6000 || p.barLen === 12000) ? 11700 : p.barLen; }
+        else { p.barLen = parseInt(v, 10); }
+        renderProfiles(); save(); return;
+    }
+    const delCut = t.closest('[data-del-cut]');
+    if (delCut) { p.cuts.splice(+delCut.dataset.delCut, 1); renderProfiles(); save(); return; }
+    if (t.closest('[data-add-cut]')) { p.cuts.push({ length: 0, qty: 1 }); renderProfiles(); save(); return; }
+    if (t.closest('[data-clear-cuts]')) {
+        if (!p.cuts.length || confirm('Очистить все строки?')) { p.cuts = []; renderProfiles(); save(); }
+        return;
+    }
+    if (t.closest('[data-preset]')) {
+        p.cuts = [
+            { length: 2400, qty: 12 }, { length: 1800, qty: 8 },
+            { length: 1500, qty: 14 }, { length: 950, qty: 20 }, { length: 600, qty: 16 },
+        ];
+        if (!p.name) p.name = 'Профтруба 40×40×2';
+        renderProfiles(); save();
+    }
 });
 
 // === Параметры заказа ===
-const fProfile = document.getElementById('fProfile');
 const fOrder = document.getElementById('fOrder');
 const fKerf = document.getElementById('fKerf');
 const fMinRem = document.getElementById('fMinRem');
-const fCustomLen = document.getElementById('fCustomLen');
-const customLenWrap = document.getElementById('customLenWrap');
-const lenToggle = document.getElementById('lenToggle');
 
-fProfile.addEventListener('input', () => { state.profile = fProfile.value; save(); });
 fOrder.addEventListener('input', () => { state.order = fOrder.value; save(); });
 fKerf.addEventListener('input', () => { state.kerf = parseFloat(fKerf.value) || 0; save(); });
 fMinRem.addEventListener('input', () => { state.minRem = parseInt(fMinRem.value, 10) || 0; save(); });
-fCustomLen.addEventListener('input', () => {
-    const v = parseInt(fCustomLen.value, 10) || 0;
-    if (v > 0) { state.barLen = v; save(); }
-});
 
-lenToggle.addEventListener('click', e => {
-    const b = e.target.closest('button[data-len]');
-    if (!b) return;
-    [...lenToggle.children].forEach(c => c.classList.remove('active'));
-    b.classList.add('active');
-    if (b.dataset.len === 'custom') {
-        customLenWrap.style.display = '';
-        state.barLen = parseInt(fCustomLen.value, 10) || 11700;
-    } else {
-        customLenWrap.style.display = 'none';
-        state.barLen = parseInt(b.dataset.len, 10);
-    }
-    save();
+document.getElementById('btnAddProfile').addEventListener('click', () => {
+    state.profiles.push(newProfile());
+    renderProfiles(); save();
 });
 
 function applyStateToUI() {
-    fProfile.value = state.profile || '';
     fOrder.value = state.order || '';
     fKerf.value = state.kerf;
     fMinRem.value = state.minRem;
-    // toggle
-    [...lenToggle.children].forEach(c => c.classList.remove('active'));
-    if (state.barLen === 6000) {
-        lenToggle.querySelector('[data-len="6000"]').classList.add('active');
-        customLenWrap.style.display = 'none';
-    } else if (state.barLen === 12000) {
-        lenToggle.querySelector('[data-len="12000"]').classList.add('active');
-        customLenWrap.style.display = 'none';
-    } else {
-        lenToggle.querySelector('[data-len="custom"]').classList.add('active');
-        customLenWrap.style.display = '';
-        fCustomLen.value = state.barLen;
-    }
 }
 
 // === Оптимизатор ===
@@ -377,48 +414,80 @@ function fmtMm(mm) { return mm >= 1000 ? (mm / 1000).toFixed(2).replace(/\.?0+$/
 function pct(p) { return p.toFixed(1) + '%'; }
 
 // === Рендер результата ===
-function renderResult(r) {
+function renderResult(report) {
     const root = document.getElementById('result');
-    if (!r) { root.classList.remove('show'); root.innerHTML = ''; return; }
-    if (r.error) {
-        root.classList.add('show');
-        root.innerHTML = `<div class="card"><div class="unplaced">${r.error}</div></div>`;
-        return;
-    }
-    const wastePct = r.totalBarsLen > 0 ? (r.totalWaste / r.totalBarsLen * 100) : 0;
-    const usedPct  = r.totalBarsLen > 0 ? (r.totalCutsLen / r.totalBarsLen * 100) : 0;
+    if (!report) { root.classList.remove('show'); root.innerHTML = ''; return; }
     const dateStr = new Date().toLocaleDateString('ru-RU');
 
     let html = '';
     html += `<div class="print-header">
         <h1>Карта раскроя</h1>
-        <div class="meta">Профиль: <b>${esc(state.profile) || '—'}</b> · Заказ: <b>${esc(state.order) || '—'}</b> · Заготовка: <b>${fmtMm(r.barLen)}</b> · Рез: ${r.kerf} мм · Дата: ${dateStr}</div>
+        <div class="meta">Заказ: <b>${esc(state.order) || '—'}</b> · Дата: ${dateStr}</div>
     </div>`;
 
-    html += `<div class="card"><h2 class="no-print">Итог</h2>
+    // Общая сводка по всем номенклатурам
+    const totalBars = report.results.reduce((s, x) => s + (x.r.bars ? x.r.bars.length : 0), 0);
+    const totalLen = report.results.reduce((s, x) => s + (x.r.totalBarsLen || 0), 0);
+    const totalCutsLen = report.results.reduce((s, x) => s + (x.r.totalCutsLen || 0), 0);
+    const totalWaste = report.results.reduce((s, x) => s + (x.r.totalWaste || 0), 0);
+    const totalRem = report.results.reduce((s, x) => s + (x.r.totalRemnant || 0), 0);
+    const usedPct = totalLen > 0 ? (totalCutsLen / totalLen * 100) : 0;
+    const wastePct = totalLen > 0 ? (totalWaste / totalLen * 100) : 0;
+
+    html += `<div class="card"><h2 class="no-print">Сводка по заказу</h2>
         <div class="summary">
-            <div class="stat"><div class="k">Хлыстов</div><div class="v">${r.bars.length}</div></div>
-            <div class="stat"><div class="k">Длина металла</div><div class="v">${fmtMm(r.totalBarsLen)}</div></div>
+            <div class="stat"><div class="k">Номенклатур</div><div class="v">${report.results.length}</div></div>
+            <div class="stat"><div class="k">Хлыстов всего</div><div class="v">${totalBars}</div></div>
+            <div class="stat"><div class="k">Длина металла</div><div class="v">${fmtMm(totalLen)}</div></div>
             <div class="stat good"><div class="k">В деталях</div><div class="v">${pct(usedPct)}</div></div>
-            <div class="stat warn"><div class="k">Обрезки на склад</div><div class="v">${fmtMm(r.totalRemnant)}</div></div>
+            <div class="stat warn"><div class="k">Обрезки на склад</div><div class="v">${fmtMm(totalRem)}</div></div>
             <div class="stat bad"><div class="k">Отходы (с резом)</div><div class="v">${pct(wastePct)}</div></div>
         </div>
         <div class="legend no-print">
             <span><i style="background:#bfdbfe;border-color:#1d4ed8;"></i>отрез</span>
-            <span><i style="background:#fde68a;border-color:#b45309;"></i>деловой обрезок ≥ ${r.minRem} мм</span>
+            <span><i style="background:#fde68a;border-color:#b45309;"></i>деловой обрезок</span>
             <span><i style="background:#fecaca;border-color:#b91c1c;"></i>отход</span>
-            <span><i style="background:#374151;border-color:#374151;"></i>пропил (${r.kerf} мм)</span>
+            <span><i style="background:#374151;border-color:#374151;"></i>пропил</span>
         </div>
     </div>`;
 
-    html += `<div class="card"><h2 class="no-print">Карта реза</h2>`;
-    r.bars.forEach((b, i) => { html += renderBarSvg(b, i + 1, r.barLen, r.kerf); });
-    html += `</div>`;
-
-    if (r.unplaced.length) {
-        const list = r.unplaced.map(u => `${u.len} мм${u.mark ? ` (${esc(u.mark)})` : ''}`).join(', ');
-        html += `<div class="card"><div class="unplaced"><b>Не помещаются в заготовку ${fmtMm(r.barLen)}:</b> ${r.unplaced.length} шт. — ${list}</div></div>`;
-    }
+    // Блок на каждую номенклатуру
+    report.results.forEach((entry, idx) => {
+        const { profile: p, r } = entry;
+        const blockId = 'block_' + p.id;
+        const collapsed = !!entry.collapsed;
+        if (r.error) {
+            html += `<div class="result-block">
+                <div class="result-head">
+                    <span class="title">${esc(p.name) || 'Номенклатура #' + (idx + 1)}</span>
+                    <span class="meta">${fmtMm(p.barLen)} · ошибка</span>
+                </div>
+                <div class="result-body"><div class="unplaced">${esc(r.error)}</div></div>
+            </div>`;
+            return;
+        }
+        const usedP = r.totalBarsLen > 0 ? (r.totalCutsLen / r.totalBarsLen * 100) : 0;
+        let bodyHtml = `<div class="summary">
+            <div class="stat"><div class="k">Хлыстов</div><div class="v">${r.bars.length}</div></div>
+            <div class="stat"><div class="k">Заготовка</div><div class="v">${fmtMm(r.barLen)}</div></div>
+            <div class="stat good"><div class="k">В деталях</div><div class="v">${pct(usedP)}</div></div>
+            <div class="stat warn"><div class="k">Обрезки</div><div class="v">${fmtMm(r.totalRemnant)}</div></div>
+        </div>`;
+        r.bars.forEach((b, i) => { bodyHtml += renderBarSvg(b, i + 1, r.barLen, r.kerf); });
+        if (r.unplaced && r.unplaced.length) {
+            const list = r.unplaced.map(u => `${u.len} мм`).join(', ');
+            bodyHtml += `<div class="unplaced"><b>Не помещаются в заготовку ${fmtMm(r.barLen)}:</b> ${r.unplaced.length} шт. — ${list}</div>`;
+        }
+        html += `<div class="result-block" data-block="${blockId}">
+            <div class="result-head" data-block-toggle>
+                <span class="caret ${collapsed ? 'collapsed' : ''}">▼</span>
+                <span class="title">${esc(p.name) || 'Номенклатура #' + (idx + 1)}</span>
+                <span class="badge">${r.bars.length} ${pluralBars(r.bars.length)}</span>
+                <span class="meta">${fmtMm(r.barLen)} · ${r.bars.reduce((s,b)=>s+b.cuts.length,0)} отр.</span>
+            </div>
+            <div class="result-body ${collapsed ? 'hidden' : ''}">${bodyHtml}</div>
+        </div>`;
+    });
 
     html += `<div class="footer-act no-print">
         <button class="btn primary" id="btnPrint">🖨 Печать карты</button>
@@ -428,11 +497,30 @@ function renderResult(r) {
 
     root.classList.add('show');
     root.innerHTML = html;
+
+    root.addEventListener('click', e => {
+        const head = e.target.closest('[data-block-toggle]');
+        if (!head) return;
+        const block = head.parentElement;
+        const body = block.querySelector('.result-body');
+        const caret = head.querySelector('.caret');
+        const hide = !body.classList.contains('hidden');
+        body.classList.toggle('hidden', hide);
+        caret.classList.toggle('collapsed', hide);
+    });
+
     document.getElementById('btnPrint').addEventListener('click', () => window.print());
-    document.getElementById('btnCsv').addEventListener('click', () => exportCsv(r));
+    document.getElementById('btnCsv').addEventListener('click', () => exportCsv(report));
     document.getElementById('btnHide').addEventListener('click', () => {
         root.classList.remove('show'); root.innerHTML = ''; window.scrollTo({ top: 0, behavior: 'smooth' });
     });
+}
+
+function pluralBars(n) {
+    const m10 = n % 10, m100 = n % 100;
+    if (m10 === 1 && m100 !== 11) return 'хлыст';
+    if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return 'хлыста';
+    return 'хлыстов';
 }
 
 function renderBarSvg(b, num, barLen, kerf) {
@@ -476,25 +564,29 @@ function renderBarSvg(b, num, barLen, kerf) {
     </div>`;
 }
 
-function exportCsv(r) {
+function exportCsv(report) {
     const rows = [];
-    rows.push(['Профиль', state.profile || '']);
     rows.push(['Заказ', state.order || '']);
-    rows.push(['Заготовка, мм', r.barLen]);
-    rows.push(['Рез, мм', r.kerf]);
-    rows.push(['Мин. обрезок, мм', r.minRem]);
+    rows.push(['Рез, мм', state.kerf]);
+    rows.push(['Мин. обрезок, мм', state.minRem]);
     rows.push([]);
-    rows.push(['Хлыст №', 'Отрез №', 'Длина, мм', 'Маркировка']);
-    r.bars.forEach((b, i) => {
-        b.cuts.forEach((c, j) => rows.push([i + 1, j + 1, c.len, c.mark || '']));
-        rows.push([i + 1, '', '— остаток —', `${Math.round(b.tail)} мм ${b.isRemnant ? '(деловой)' : '(отход)'}`]);
+    report.results.forEach((entry, idx) => {
+        const { profile: p, r } = entry;
+        rows.push([`Номенклатура ${idx + 1}`, p.name || '']);
+        rows.push(['Заготовка, мм', p.barLen]);
+        if (r.error) { rows.push(['Ошибка', r.error]); rows.push([]); return; }
+        rows.push(['Хлыст №', 'Отрез №', 'Длина, мм']);
+        r.bars.forEach((b, i) => {
+            b.cuts.forEach((c, j) => rows.push([i + 1, j + 1, c.len]));
+            rows.push([i + 1, '', `— остаток ${Math.round(b.tail)} мм (${b.isRemnant ? 'деловой' : 'отход'}) —`]);
+        });
+        rows.push(['ИТОГО хлыстов', r.bars.length]);
+        rows.push(['Общая длина, мм', r.totalBarsLen]);
+        rows.push(['В деталях, мм', r.totalCutsLen]);
+        rows.push(['Деловых обрезков, мм', r.totalRemnant]);
+        rows.push(['Отходов (с резом), мм', r.totalWaste]);
+        rows.push([]);
     });
-    rows.push([]);
-    rows.push(['ИТОГО хлыстов', r.bars.length]);
-    rows.push(['Общая длина, мм', r.totalBarsLen]);
-    rows.push(['В деталях, мм', r.totalCutsLen]);
-    rows.push(['Деловых обрезков, мм', r.totalRemnant]);
-    rows.push(['Отходов (с резом), мм', r.totalWaste]);
     const csv = rows.map(row => row.map(v => {
         const s = String(v ?? '');
         return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
@@ -508,20 +600,27 @@ function exportCsv(r) {
 }
 
 document.getElementById('btnCalc').addEventListener('click', () => {
-    if (!state.cuts.some(c => (c.length | 0) > 0 && (c.qty | 0) > 0)) {
-        alert('Добавьте хотя бы один отрезок с длиной и количеством.'); return;
-    }
-    if (!(state.barLen > 0)) { alert('Укажите длину заготовки.'); return; }
-    const r = optimize(state.cuts, state.barLen, state.kerf, state.minRem);
-    state.result = r;
-    renderResult(r);
+    if (!state.profiles.length) { alert('Добавьте хотя бы одну номенклатуру.'); return; }
+    const valid = state.profiles.filter(p => p.cuts.some(c => (c.length | 0) > 0 && (c.qty | 0) > 0));
+    if (!valid.length) { alert('Заполните хотя бы один отрезок с длиной и количеством.'); return; }
+
+    const results = state.profiles.map(p => ({
+        profile: p,
+        collapsed: false,
+        r: (p.barLen > 0 && p.cuts.some(c => (c.length | 0) > 0 && (c.qty | 0) > 0))
+            ? optimize(p.cuts, p.barLen, state.kerf, state.minRem)
+            : { error: 'Не задано отрезков или длины заготовки', bars: [] },
+    }));
+    state.result = { results };
+    renderResult(state.result);
     setTimeout(() => document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
 });
 
 // === Init ===
 load();
+if (state.profiles.length === 0) state.profiles.push(newProfile('', 12000));
 applyStateToUI();
-renderCuts();
+renderProfiles();
 </script>
 </body>
 </html>
