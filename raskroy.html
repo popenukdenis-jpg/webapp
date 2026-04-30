@@ -1074,8 +1074,9 @@ function renderSheetSvg(sheet, sheetW, sheetH) {
         const fill = palette[p.srcIdx % palette.length];
         let x, y, w, h;
         if (isPortrait) {
-            // 90° за годинниковою: (px,py) → (sheetH - py - ph, px)
-            x = sheetH - p.y - p.h;
+            // Транспонуємо: (px,py,pw,ph) → (py,px,ph,pw).
+            // Так лівий-верхній кут заготовки залишається в лівому-верхньому куті показу.
+            x = p.y;
             y = p.x;
             w = p.h;
             h = p.w;
