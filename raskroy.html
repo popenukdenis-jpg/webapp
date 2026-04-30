@@ -186,7 +186,7 @@ const STORAGE_KEY = 'raskroy.v2';
 let nextProfId = 1;
 
 function newProfile(name = '', barLen = 12000) {
-    return { id: nextProfId++, name, barLen, cutPrice: 0, collapsed: false, cuts: [{ length: 0, qty: 1 }] };
+    return { id: nextProfId++, name, barLen, cutPrice: 0, collapsed: false, cuts: [{ length: 0, qty: 0 }] };
 }
 
 function save() {
@@ -319,7 +319,7 @@ document.getElementById('profilesContainer').addEventListener('click', e => {
     }
     const delCut = t.closest('[data-del-cut]');
     if (delCut) { p.cuts.splice(+delCut.dataset.delCut, 1); renderProfiles(); save(); return; }
-    if (t.closest('[data-add-cut]')) { p.cuts.push({ length: 0, qty: 1 }); renderProfiles(); save(); return; }
+    if (t.closest('[data-add-cut]')) { p.cuts.push({ length: 0, qty: 0 }); renderProfiles(); save(); return; }
     if (t.closest('[data-clear-cuts]')) {
         if (!p.cuts.length || confirm('Очистить все строки?')) { p.cuts = []; renderProfiles(); save(); }
         return;
