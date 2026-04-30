@@ -1113,7 +1113,10 @@ function renderResultSheet(report) {
         entry.metrics = r.sheets.map(s => calcSheetMetrics(s, r.kerf));
         entry.pierces = entry.metrics.reduce((s, m) => s + m.pierces, 0);
         entry.cutLen = entry.metrics.reduce((s, m) => s + m.cutLen, 0);
-        entry.cost = entry.pierces * (state.piercePrice || 0) + (entry.cutLen / 1000) * (state.cutMeterPrice || 0);
+        const price = ktPriceFor(entry.profile.thickness);
+        entry.piercePrice = price ? price.pierce : 0;
+        entry.cutMeterPrice = price ? price.cut : 0;
+        entry.cost = entry.pierces * entry.piercePrice + (entry.cutLen / 1000) * entry.cutMeterPrice;
         totalSheets += r.sheets.length;
         totalPierces += entry.pierces;
         totalCutLen += entry.cutLen;
@@ -1154,6 +1157,8 @@ function renderResultSheet(report) {
             <div class="stat good"><div class="k">У деталях</div><div class="v">${pct(usedP)}</div></div>
             <div class="stat"><div class="k">Врізок</div><div class="v">${entry.pierces}</div></div>
             <div class="stat"><div class="k">Довжина різу</div><div class="v">${(entry.cutLen/1000).toFixed(2)} м</div></div>
+            <div class="stat no-wh-print"><div class="k">Ціна 1 врізки</div><div class="v">${entry.piercePrice ? entry.piercePrice + ' грн' : '—'}</div></div>
+            <div class="stat no-wh-print"><div class="k">Ціна 1 м різу</div><div class="v">${entry.cutMeterPrice ? entry.cutMeterPrice + ' грн' : '—'}</div></div>
             <div class="stat cost no-wh-print"><div class="k">Вартість різів</div><div class="v">${fmtMoney(entry.cost)}</div></div>
         </div>`;
         r.sheets.forEach((s, i) => {
