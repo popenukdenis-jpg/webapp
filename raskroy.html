@@ -568,7 +568,7 @@ function sheetHtml(sh, idx) {
             <div style="display:flex;align-items:center;gap:6px;">
                 <span style="font-size:12px;color:#6b7280;">Ширина різу</span>
                 <div style="position:relative;display:inline-block;">
-                    <input type="number" min="0" step="0.5" value="${sh.kerf || ''}" data-kerf placeholder="0" style="width:90px;padding:6px 28px 6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:16px;text-align:right;">
+                    <input type="number" min="0" step="1" value="${sh.kerf || ''}" data-kerf placeholder="" style="width:90px;padding:6px 28px 6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:16px;text-align:right;">
                     <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:#9ca3af;font-size:13px;">мм</span>
                 </div>
             </div>
@@ -627,7 +627,7 @@ document.getElementById('sheetsContainer').addEventListener('input', e => {
     const t = e.target;
     const sh = findSheet(t);
     if (!sh) return;
-    if (t.matches('[data-kerf]')) { sh.kerf = parseFloat(t.value) || 0; save(); return; }
+    if (t.matches('[data-kerf]')) { sh.kerf = parseInt(t.value, 10) || 0; save(); return; }
     if (t.matches('[data-custom-w]')) { const v = parseInt(t.value, 10) || 0; if (v > 0) { sh.sheetW = v; save(); } return; }
     if (t.matches('[data-custom-h]')) { const v = parseInt(t.value, 10) || 0; if (v > 0) { sh.sheetH = v; save(); } return; }
     if (t.matches('[data-pi]')) {
