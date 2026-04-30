@@ -1264,6 +1264,7 @@ function renderResultSheet(report) {
     html += `<div class="footer-act no-print">
         <button class="btn primary" id="btnPrintWhSheet">🖨 Карта розкрою (склад)</button>
         <button class="btn primary" id="btnPrintClSheet">🖨 Замовлення (клієнт)</button>
+        <button class="btn" id="btnDxfSheet">📐 DXF для плазми</button>
         <button class="btn ghost" id="btnHideSheet">Сховати</button>
     </div>`;
 
@@ -1285,7 +1286,63 @@ function renderResultSheet(report) {
     window.addEventListener('afterprint', () => document.body.classList.remove('print-client'), { once: true });
     document.getElementById('btnPrintWhSheet').addEventListener('click', () => printAsSheet('warehouse'));
     document.getElementById('btnPrintClSheet').addEventListener('click', () => printAsSheet('client'));
+    document.getElementById('btnDxfSheet').addEventListener('click', () => exportDxf(report));
     document.getElementById('btnHideSheet').addEventListener('click', () => { root.classList.remove('show'); root.innerHTML = ''; window.scrollTo({ top: 0, behavior: 'smooth' }); });
+}
+
+// === DXF-экспорт для плазмореза ===
+function dxfPolyline(points, layer) {
+    let s = '0\nLWPOLYLINE\n8\n' + layer + '\n90\n' + points.length + '\n70\n1\n';
+    points.forEach(p => { s += '10\n' + p[0].toFixed(3) + '\n20\n' + p[1].toFixed(3) + '\n'; });
+    return s;
+}
+
+function exportDxf(report) {
+    let dxf = '999\nКТ Сталь · карта розкрою\n';
+    dxf += '0\nSECTION\n2\nHEADER\n9\n$ACADVER\n1\nAC1009\n0\nENDSEC\n';
+    dxf += '0\nSECTION\n2\nTABLES\n';
+    dxf += '0\nTABLE\n2\nLAYER\n70\n2\n';
+    dxf += '0\nLAYER\n2\nSHEET\n70\n0\n62\n8\n6\nCONTINUOUS\n';   // серый
+    dxf += '0\nLAYER\n2\nPARTS\n70\n0\n62\n1\n6\nCONTINUOUS\n';   // красный (рез)
+    dxf += '0\nENDTAB\n0\nENDSEC\n';
+    dxf += '0\nSECTION\n2\nENTITIES\n';
+
+    let xOffset = 0;
+    const gap = 300; // зазор между листами в результирующем DXF
+
+    report.results.forEach(entry => {
+        const r = entry.r;
+        if (r.error || !r.sheets) return;
+        r.sheets.forEach(sheet => {
+            // Контур листа (Y вверх — Cartesian, лист от 0 до sheetH)
+            dxf += dxfPolyline([
+                [xOffset, 0],
+                [xOffset + r.sheetW, 0],
+                [xOffset + r.sheetW, r.sheetH],
+                [xOffset, r.sheetH],
+            ], 'SHEET');
+            // Детали — каждая отдельным замкнутым прямоугольником на слое PARTS
+            sheet.placements.forEach(p => {
+                const yCart = r.sheetH - p.y - p.h; // Y вверх
+                dxf += dxfPolyline([
+                    [xOffset + p.x, yCart],
+                    [xOffset + p.x + p.w, yCart],
+                    [xOffset + p.x + p.w, yCart + p.h],
+                    [xOffset + p.x, yCart + p.h],
+                ], 'PARTS');
+            });
+            xOffset += r.sheetW + gap;
+        });
+    });
+
+    dxf += '0\nENDSEC\n0\nEOF\n';
+
+    const blob = new Blob([dxf], { type: 'application/dxf' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const name = (state.orderSheet || 'order').replace(/[^\w\-А-Яа-яЁёІіЇїЄєҐґ]/g, '_');
+    a.href = url; a.download = `plasma_${name}_${Date.now()}.dxf`; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
 function pluralSheets(n) {
