@@ -473,7 +473,7 @@ function renderResult(report) {
             <div class="stat good"><div class="k">В деталях</div><div class="v">${pct(usedP)}</div></div>
             <div class="stat warn"><div class="k">Обрезки</div><div class="v">${fmtMm(r.totalRemnant)}</div></div>
         </div>`;
-        r.bars.forEach((b, i) => { bodyHtml += renderBarSvg(b, i + 1, r.barLen, r.kerf); });
+        r.bars.forEach((b, i) => { bodyHtml += renderBarSvg(b, i + 1, r.barLen, r.kerf, p.name); });
         if (r.unplaced && r.unplaced.length) {
             const list = r.unplaced.map(u => `${u.len} мм`).join(', ');
             bodyHtml += `<div class="unplaced"><b>Не помещаются в заготовку ${fmtMm(r.barLen)}:</b> ${r.unplaced.length} шт. — ${list}</div>`;
@@ -523,7 +523,7 @@ function pluralBars(n) {
     return 'хлыстов';
 }
 
-function renderBarSvg(b, num, barLen, kerf) {
+function renderBarSvg(b, num, barLen, kerf, profileName) {
     const W = 1000, H = 38;
     const scale = W / barLen;
     const palette = ['#bfdbfe','#a7f3d0','#fde68a','#fbcfe8','#c7d2fe','#fed7aa','#bae6fd','#d9f99d','#fecaca','#e9d5ff'];
@@ -555,9 +555,10 @@ function renderBarSvg(b, num, barLen, kerf) {
 
     const tailLabel = b.tail <= 0 ? 'без остатка'
         : (b.isRemnant ? `обрезок ${Math.round(b.tail)} мм → склад` : `остаток ${Math.round(b.tail)} мм`);
+    const nameTxt = profileName ? ' ' + esc(profileName) : '';
     return `<div class="bar">
         <div class="bar-head">
-            <span><b>Хлыст #${num}</b> · ${b.cuts.length} отр.</span>
+            <span><b>Хлыст${nameTxt} №${num}</b> · ${b.cuts.length} отр.</span>
             <span>${tailLabel}</span>
         </div>
         ${svg}
