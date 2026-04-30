@@ -201,6 +201,10 @@ td.act { width: 32px; text-align: center; }
 .size-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; align-items: end; }
 .size-grid label { font-size: 12px; color: #6b7280; }
 .piece-tbl th:nth-child(2), .piece-tbl th:nth-child(3), .piece-tbl th:nth-child(4) { width: 25%; }
+.sheet-svg { display: block; background: #fff; border: 1px solid #555; max-width: 100%; max-height: 50vh; width: auto; height: auto; margin: 0 auto; }
+@media print {
+    .sheet-svg { max-height: 80vh; }
+}
 </style>
 </head>
 <body>
@@ -1057,16 +1061,13 @@ function calcSheetMetrics(sheet, kerf) {
 
 // === Рендер карты листового раскроя ===
 function renderSheetSvg(sheet, sheetW, sheetH) {
-    const targetW = 700;
-    const ratio = sheetH / sheetW;
-    const targetH = targetW * ratio;
     const palette = ['#bfdbfe','#a7f3d0','#fde68a','#fbcfe8','#c7d2fe','#fed7aa','#bae6fd','#d9f99d','#fecaca','#e9d5ff'];
-    let svg = `<svg viewBox="0 0 ${sheetW} ${sheetH}" width="100%" style="max-width:${targetW}px; height:auto; aspect-ratio:${sheetW}/${sheetH}; border:1px solid #555; background:#fff; display:block;" preserveAspectRatio="xMidYMid meet">`;
-    svg += `<rect x="0" y="0" width="${sheetW}" height="${sheetH}" fill="#fff" stroke="#9ca3af" stroke-width="2"/>`;
+    let svg = `<svg viewBox="0 0 ${sheetW} ${sheetH}" class="sheet-svg" style="aspect-ratio:${sheetW}/${sheetH};" preserveAspectRatio="xMidYMid meet">`;
+    svg += `<rect x="0" y="0" width="${sheetW}" height="${sheetH}" fill="#fff" stroke="#9ca3af" stroke-width="4"/>`;
     sheet.placements.forEach(p => {
         const fill = palette[p.srcIdx % palette.length];
-        svg += `<rect x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}" fill="${fill}" stroke="#1f2937" stroke-width="2"/>`;
-        const fs = Math.max(20, Math.min(p.w, p.h) / 4);
+        svg += `<rect x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}" fill="${fill}" stroke="#1f2937" stroke-width="3"/>`;
+        const fs = Math.max(28, Math.min(p.w, p.h) / 4.5);
         const label = `${p.w}×${p.h}${p.rot ? ' ↻' : ''}`;
         svg += `<text x="${p.x + p.w/2}" y="${p.y + p.h/2}" text-anchor="middle" dominant-baseline="central" font-size="${fs}" font-family="system-ui" font-weight="600" fill="#111">${label}</text>`;
     });
