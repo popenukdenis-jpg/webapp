@@ -414,7 +414,15 @@ function profileHtml(p, idx) {
     return `<div class="nom-card" data-pid="${p.id}">
         <div class="nom-head">
             <span class="caret" data-toggle title="${p.collapsed ? 'Розгорнути' : 'Згорнути'}">${p.collapsed ? '+' : '−'}</span>
-            <input class="name-input" type="text" placeholder="Номенклатура (напр. Профтруба 40×40×2)" value="${esc(p.name)}" data-name>
+            <div class="combo" data-combo style="flex: 1 1 240px; min-width: 220px;">
+                <input type="text" class="combo-input" data-name autocomplete="off"
+                       placeholder="Номенклатура (наберіть для пошуку)"
+                       value="${esc(p.name)}">
+                <span class="combo-arrow">▼</span>
+                <div class="combo-list" hidden>
+                    ${LINEAR_PROFILES.map(name => `<div class="combo-item" data-value="${esc(name)}">${esc(name)}</div>`).join('')}
+                </div>
+            </div>
             <span class="nom-meta">${totalCuts ? totalCuts + ' відр.' : '—'}</span>
             <div class="toggle" data-len-toggle>${lenButtons}</div>
             ${isCustom ? `<input type="number" min="100" step="1" value="${p.barLen}" data-custom-len style="width:90px; padding:6px 8px; border:1px solid #d1d5db; border-radius:6px;">` : ''}
@@ -456,7 +464,13 @@ document.getElementById('profilesContainer').addEventListener('input', e => {
     const t = e.target;
     const p = findProfile(t);
     if (!p) return;
-    if (t.matches('[data-name]')) { p.name = t.value; save(); return; }
+    if (t.matches('[data-name]')) {
+        p.name = t.value;
+        const combo = t.closest('[data-combo]');
+        if (combo) { combo.querySelector('.combo-list').hidden = false; comboFilter(combo, t.value); }
+        save();
+        return;
+    }
     if (t.matches('[data-custom-len]')) {
         const v = parseInt(t.value, 10) || 0; if (v > 0) { p.barLen = v; save(); }
         return;
@@ -469,6 +483,56 @@ document.getElementById('profilesContainer').addEventListener('input', e => {
         const total = p.cuts.reduce((s, c) => s + ((c.length | 0) > 0 && (c.qty | 0) > 0 ? c.qty : 0), 0);
         if (meta) meta.textContent = total ? total + ' отр.' : '—';
         save();
+    }
+});
+
+// Combobox for linear profile names: focus opens, mousedown commits, keys navigate
+document.getElementById('profilesContainer').addEventListener('focusin', e => {
+    if (!e.target.matches('[data-name]')) return;
+    const combo = e.target.closest('[data-combo]');
+    if (combo) { combo.querySelector('.combo-list').hidden = false; comboFilter(combo, e.target.value); }
+});
+document.getElementById('profilesContainer').addEventListener('mousedown', e => {
+    const item = e.target.closest('.combo-item');
+    if (item && !item.classList.contains('empty')) {
+        e.preventDefault();
+        const combo = item.closest('[data-combo]');
+        const inp = combo.querySelector('[data-name]'); if (!inp) return;
+        const p = findProfile(inp); if (!p) return;
+        p.name = item.textContent;
+        inp.value = item.textContent;
+        combo.querySelector('.combo-list').hidden = true;
+        save();
+    }
+});
+document.getElementById('profilesContainer').addEventListener('keydown', e => {
+    if (!e.target.matches('[data-name]')) return;
+    const combo = e.target.closest('[data-combo]');
+    const list = combo.querySelector('.combo-list');
+    const items = [...list.querySelectorAll('.combo-item:not(.hidden):not(.empty)')];
+    let active = items.findIndex(i => i.classList.contains('active'));
+    if (e.key === 'ArrowDown') { e.preventDefault(); list.hidden = false; active = (active + 1) % items.length; }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); active = active <= 0 ? items.length - 1 : active - 1; }
+    else if (e.key === 'Enter') {
+        if (active >= 0 && items[active]) {
+            e.preventDefault();
+            const p = findProfile(e.target); if (p) {
+                p.name = items[active].textContent;
+                e.target.value = items[active].textContent;
+                list.hidden = true;
+                save();
+            }
+        }
+        return;
+    }
+    else if (e.key === 'Escape') { list.hidden = true; return; }
+    else return;
+    items.forEach((it, i) => it.classList.toggle('active', i === active));
+    if (items[active]) items[active].scrollIntoView({ block: 'nearest' });
+});
+document.addEventListener('click', e => {
+    if (!e.target.closest('[data-combo]')) {
+        document.querySelectorAll('#profilesContainer .combo-list').forEach(l => l.hidden = true);
     }
 });
 
@@ -544,6 +608,65 @@ const STD_SHEETS = [
     { w: 1500, h: 6000 },
     { w: 1250, h: 2500 },
     { w: 1000, h: 2000 },
+];
+
+// Список номенклатур для лінійного розкрою
+const LINEAR_PROFILES = [
+    'Арматура 6 мм','Арматура 8 мм','Арматура 10 мм','Арматура 12 мм','Арматура 14 мм',
+    'Арматура 16 мм','Арматура 18 мм','Арматура 20 мм','Арматура 22 мм','Арматура 25 мм',
+    'Арматура 28 мм','Арматура 32 мм','Арматура 36 мм',
+    'Швеллер 100','Швеллер 120','Швеллер 140','Швеллер 160','Швеллер 180','Швеллер 200',
+    'Швеллер 220','Швеллер 240','Швеллер 270','Швеллер 300',
+    '15/15/1.5 Труба профільна','15/15/1.8 Труба профільна','15/15/2 Труба профільна',
+    '16/16/2 Труба профільна','17/17/2 Труба профільна',
+    '20/20/1.8 Труба профільна','20/20/2 Труба профільна','20/20/3 Труба профільна',
+    '25/25/1.5 Труба профільна','25/25/1.8 Труба профільна','25/25/2 Труба профільна','25/25/3 Труба профільна',
+    '30/20/1.8 Труба профільна','30/20/2 Труба профільна','30/20/3 Труба профільна',
+    '30/30/1.8 Труба профільна','30/30/2 Труба профільна','30/30/3 Труба профільна','30/30/4 Труба профільна',
+    '35/35/2 Труба профільна','35/35/3 Труба профільна',
+    '40/20/1.5 Труба профільна','40/20/1.8 Труба профільна','40/20/2 Труба профільна','40/20/3 Труба профільна',
+    '40/25/1.8 Труба профільна','40/25/2 Труба профільна','40/25/3 Труба профільна',
+    '40/28/2 Труба профільна','40/30/2 Труба профільна','40/30/3 Труба профільна',
+    '40/40/1.5 Труба профільна','40/40/1.8 Труба профільна','40/40/2 Труба профільна',
+    '40/40/2.5 Труба профільна','40/40/3 Труба профільна','40/40/4 Труба профільна',
+    '45/45/2 Труба профільна',
+    '50/25/1.5 Труба профільна','50/25/1.8 Труба профільна','50/25/2 Труба профільна','50/25/3 Труба профільна',
+    '50/30/2 Труба профільна','50/30/3 Труба профільна','50/30/4 Труба профільна',
+    '50/40/2 Труба профільна','50/40/3 Труба профільна',
+    '50/50/1.8 Труба профільна','50/50/2 Труба профільна','50/50/3 Труба профільна','50/50/4 Труба профільна','50/50/5 Труба профільна',
+    '60/20/2 Труба профільна','60/25/3 Труба профільна',
+    '60/30/2 Труба профільна','60/30/2.4 Труба профільна','60/30/3 Труба профільна','60/30/4 Труба профільна',
+    '60/40/1.5 Труба профільна','60/40/2 Труба профільна','60/40/2.5 Труба профільна',
+    '60/40/3 Труба профільна','60/40/4 Труба профільна','60/40/5 Труба профільна',
+    '60/60/2 Труба профільна','60/60/3 Труба профільна','60/60/4 Труба профільна','60/60/5 Труба профільна',
+    '70/50/3 Труба профільна','70/50/4 Труба профільна',
+    '70/70/2 Труба профільна','70/70/3 Труба профільна','70/70/4 Труба профільна',
+    '80/40/2 Труба профільна','80/40/3 Труба профільна','80/40/4 Труба профільна','80/40/5 Труба профільна',
+    '80/60/2 Труба профільна','80/60/3 Труба профільна','80/60/4 Труба профільна','80/60/5 Труба профільна','80/60/6 Труба профільна',
+    '80/80/2 Труба профільна','80/80/2.5 Труба профільна','80/80/3 Труба профільна','80/80/4 Труба профільна','80/80/5 Труба профільна','80/80/6 Труба профільна',
+    '90/90/3 Труба профільна','90/90/4 Труба профільна',
+    '100/40/2 Труба профільна','100/40/2.5 Труба профільна','100/40/3 Труба профільна','100/40/4 Труба профільна','100/40/5 Труба профільна',
+    '100/50/2 Труба профільна','100/50/3 Труба профільна','100/50/4 Труба профільна','100/50/5 Труба профільна',
+    '100/60/3 Труба профільна','100/60/4 Труба профільна','100/60/6 Труба профільна',
+    '100/80/3 Труба профільна','100/80/4 Труба профільна',
+    '100/100/2 Труба профільна','100/100/3 Труба профільна','100/100/4 Труба профільна','100/100/5 Труба профільна','100/100/6 Труба профільна','100/100/8 Труба профільна',
+    '120/60/3 Труба профільна','120/60/4 Труба профільна','120/60/5 Труба профільна','120/60/6 Труба профільна',
+    '120/80/3 Труба профільна','120/80/4 Труба профільна','120/80/5 Труба профільна','120/80/6 Труба профільна',
+    '120/120/3 Труба профільна','120/120/4 Труба профільна','120/120/5 Труба профільна','120/120/6 Труба профільна',
+    '140/100/4 Труба профільна','140/100/5 Труба профільна','140/100/6 Труба профільна',
+    '140/140/3 Труба профільна','140/140/4 Труба профільна','140/140/5 Труба профільна','140/140/6 Труба профільна',
+    '150/100/4 Труба профільна','150/100/5 Труба профільна','150/100/6 Труба профільна','150/100/8 Труба профільна',
+    '150/150/4 Труба профільна','150/150/5 Труба профільна','150/150/6 Труба профільна','150/150/8 Труба профільна',
+    '160/80/3 Труба профільна','160/80/4 Труба профільна','160/80/5 Труба профільна','160/80/6 Труба профільна',
+    '160/100/6 Труба профільна',
+    '160/160/4 Труба профільна','160/160/5 Труба профільна','160/160/6 Труба профільна','160/160/8 Труба профільна',
+    '180/80/5 Труба профільна','180/80/8 Труба профільна',
+    '180/100/3 Труба профільна','180/100/4 Труба профільна','180/100/5 Труба профільна',
+    '180/140/6 Труба профільна',
+    '180/180/5 Труба профільна','180/180/6 Труба профільна','180/180/8 Труба профільна',
+    '200/100/4 Труба профільна','200/100/5 Труба профільна','200/100/6 Труба профільна',
+    '200/200/4 Труба профільна','200/200/5 Труба профільна','200/200/6 Труба профільна','200/200/8 Труба профільна','200/200/10 Труба профільна',
+    '250/250/8 Труба профільна',
 ];
 
 // Прайс КТ-Сталь · плазмова різка (грн)
