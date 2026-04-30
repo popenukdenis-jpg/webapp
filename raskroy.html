@@ -62,6 +62,9 @@ td.act { width: 32px; text-align: center; }
 .stat.good .v { color: #059669; }
 .stat.warn .v { color: #d97706; }
 .stat.bad .v { color: #dc2626; }
+.stat input.price-input { width: 90px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 16px; font-weight: 600; font-family: inherit; font-variant-numeric: tabular-nums; color: #111827; background: #fff; }
+.stat input.price-input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.15); }
+.stat.cost .v { color: #7c3aed; }
 
 .bar { margin: 14px 0; }
 .bar-head { display: flex; justify-content: space-between; font-size: 13px; color: #374151; margin-bottom: 4px; font-variant-numeric: tabular-nums; }
@@ -167,7 +170,7 @@ const STORAGE_KEY = 'raskroy.v2';
 let nextProfId = 1;
 
 function newProfile(name = '', barLen = 12000) {
-    return { id: nextProfId++, name, barLen, collapsed: false, cuts: [{ length: 0, qty: 1 }] };
+    return { id: nextProfId++, name, barLen, cutPrice: 0, collapsed: false, cuts: [{ length: 0, qty: 1 }] };
 }
 
 function save() {
@@ -403,6 +406,12 @@ function optimize(cuts, barLen, kerf, minRem) {
 function esc(s) { return String(s ?? '').replace(/[<>&"']/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c])); }
 function fmtMm(mm) { return mm >= 1000 ? (mm / 1000).toFixed(2).replace(/\.?0+$/, '') + ' м' : Math.round(mm) + ' мм'; }
 function pct(p) { return p.toFixed(1) + '%'; }
+function fmtMoney(v) {
+    if (!v) return '0 ₽';
+    const r = Math.round(v * 100) / 100;
+    const s = r.toFixed(r % 1 === 0 ? 0 : 2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    return s + ' ₽';
+}
 
 // === Рендер результата ===
 function renderResult(report) {
@@ -416,12 +425,26 @@ function renderResult(report) {
         <div class="meta">Заказ: <b>${esc(state.order) || '—'}</b> · Дата: ${dateStr}</div>
     </div>`;
 
+    // Предварительно посчитаем резы и стоимость для каждого блока
+    report.results.forEach(entry => {
+        const r = entry.r;
+        if (!r || r.error || !r.bars) { entry.sawCuts = 0; entry.cost = 0; return; }
+        entry.sawCuts = r.bars.reduce((s, b) => {
+            const n = b.cuts.length;
+            if (n === 0) return s;
+            return s + (n - 1) + (b.tail > 0 ? 1 : 0);
+        }, 0);
+        entry.cost = entry.sawCuts * (+entry.profile.cutPrice || 0);
+    });
+
     // Общая сводка по всем номенклатурам
     const totalBars = report.results.reduce((s, x) => s + (x.r.bars ? x.r.bars.length : 0), 0);
     const totalLen = report.results.reduce((s, x) => s + (x.r.totalBarsLen || 0), 0);
     const totalCutsLen = report.results.reduce((s, x) => s + (x.r.totalCutsLen || 0), 0);
     const totalWaste = report.results.reduce((s, x) => s + (x.r.totalWaste || 0), 0);
     const totalRem = report.results.reduce((s, x) => s + (x.r.totalRemnant || 0), 0);
+    const totalSawCuts = report.results.reduce((s, x) => s + (x.sawCuts || 0), 0);
+    const totalCost = report.results.reduce((s, x) => s + (x.cost || 0), 0);
     const usedPct = totalLen > 0 ? (totalCutsLen / totalLen * 100) : 0;
     const wastePct = totalLen > 0 ? (totalWaste / totalLen * 100) : 0;
 
@@ -433,6 +456,8 @@ function renderResult(report) {
             <div class="stat good"><div class="k">В деталях</div><div class="v">${pct(usedPct)}</div></div>
             <div class="stat warn"><div class="k">Обрезки на склад</div><div class="v">${fmtMm(totalRem)}</div></div>
             <div class="stat bad"><div class="k">Остатки (с резом)</div><div class="v">${pct(wastePct)}</div></div>
+            <div class="stat"><div class="k">Резов всего</div><div class="v" data-total-saw>${totalSawCuts}</div></div>
+            <div class="stat cost"><div class="k">Стоимость резов</div><div class="v" data-total-cost>${fmtMoney(totalCost)}</div></div>
         </div>
         <div class="legend no-print">
             <span><i style="background:#bfdbfe;border-color:#1d4ed8;"></i>отрез</span>
@@ -458,18 +483,17 @@ function renderResult(report) {
             return;
         }
         const usedP = r.totalBarsLen > 0 ? (r.totalCutsLen / r.totalBarsLen * 100) : 0;
-        // Резы на хлыст: (n-1) между деталями + 1 рез на отделение остатка/обрезка, если он есть
-        const sawCuts = r.bars.reduce((s, b) => {
-            const n = b.cuts.length;
-            if (n === 0) return s;
-            return s + (n - 1) + (b.tail > 0 ? 1 : 0);
-        }, 0);
+        const sawCuts = entry.sawCuts;
+        const price = +p.cutPrice || 0;
+        const cost = entry.cost;
         let bodyHtml = `<div class="summary">
             <div class="stat"><div class="k">Хлыстов</div><div class="v">${r.bars.length}</div></div>
             <div class="stat"><div class="k">Заготовка</div><div class="v">${fmtMm(r.barLen)}</div></div>
             <div class="stat good"><div class="k">В деталях</div><div class="v">${pct(usedP)}</div></div>
             <div class="stat warn"><div class="k">Обрезки</div><div class="v">${fmtMm(r.totalRemnant)}</div></div>
             <div class="stat"><div class="k">Резов</div><div class="v">${sawCuts}</div></div>
+            <div class="stat"><div class="k">Цена реза, ₽</div><div class="v"><input class="price-input" type="number" min="0" step="0.5" value="${price || ''}" data-price="${p.id}" placeholder="0"></div></div>
+            <div class="stat cost"><div class="k">Стоимость резов</div><div class="v" data-cost="${p.id}">${fmtMoney(cost)}</div></div>
         </div>`;
         r.bars.forEach((b, i) => { bodyHtml += renderBarSvg(b, i + 1, r.barLen, r.kerf, p.name); });
         if (r.unplaced && r.unplaced.length) {
@@ -505,6 +529,23 @@ function renderResult(report) {
         const hide = !body.classList.contains('hidden');
         body.classList.toggle('hidden', hide);
         if (caret) caret.textContent = hide ? '+' : '−';
+    });
+
+    root.addEventListener('input', e => {
+        const inp = e.target.closest('[data-price]');
+        if (!inp) return;
+        const pid = +inp.dataset.price;
+        const entry = report.results.find(x => x.profile.id === pid);
+        if (!entry) return;
+        const price = parseFloat(inp.value) || 0;
+        entry.profile.cutPrice = price;
+        entry.cost = (entry.sawCuts || 0) * price;
+        const costEl = root.querySelector(`[data-cost="${pid}"]`);
+        if (costEl) costEl.textContent = fmtMoney(entry.cost);
+        const totalCost = report.results.reduce((s, x) => s + (x.cost || 0), 0);
+        const totalEl = root.querySelector('[data-total-cost]');
+        if (totalEl) totalEl.textContent = fmtMoney(totalCost);
+        save();
     });
 
     document.getElementById('btnPrint').addEventListener('click', () => window.print());
@@ -584,8 +625,15 @@ function exportCsv(report) {
         rows.push(['В деталях, мм', r.totalCutsLen]);
         rows.push(['Деловых обрезков, мм', r.totalRemnant]);
         rows.push(['Остатков (с резом), мм', r.totalWaste]);
+        rows.push(['Резов, шт', entry.sawCuts || 0]);
+        rows.push(['Цена реза, ₽', p.cutPrice || 0]);
+        rows.push(['Стоимость резов, ₽', entry.cost || 0]);
         rows.push([]);
     });
+    const grandCost = report.results.reduce((s, x) => s + (x.cost || 0), 0);
+    const grandSaw = report.results.reduce((s, x) => s + (x.sawCuts || 0), 0);
+    rows.push(['ИТОГО резов по заказу, шт', grandSaw]);
+    rows.push(['ИТОГО стоимость резов, ₽', grandCost]);
     const csv = rows.map(row => row.map(v => {
         const s = String(v ?? '');
         return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
