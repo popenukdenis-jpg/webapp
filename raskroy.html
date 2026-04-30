@@ -192,6 +192,18 @@ td.act { width: 32px; text-align: center; }
 .result-body { padding: 14px 16px; }
 .result-body.hidden { display: none; }
 
+.combo { position: relative; flex: 1 1 240px; min-width: 240px; }
+.combo-input { width: 100%; padding: 6px 30px 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 16px; font-family: inherit; font-weight: 600; background: #fff; }
+.combo-input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+.combo-arrow { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); pointer-events: none; color: #6b7280; font-size: 11px; }
+.combo-list { position: absolute; top: calc(100% + 2px); left: 0; right: 0; max-height: 320px; overflow: auto; background: #fff; border: 1px solid #d1d5db; border-radius: 6px; box-shadow: 0 6px 16px rgba(0,0,0,0.12); z-index: 100; }
+.combo-list[hidden] { display: none; }
+.combo-item { padding: 8px 12px; cursor: pointer; font-size: 14px; }
+.combo-item.hidden { display: none; }
+.combo-item:hover, .combo-item.active { background: #eff6ff; color: #1d4ed8; }
+.combo-item.empty { color: #9ca3af; cursor: default; }
+.combo-item.empty:hover { background: transparent; color: #9ca3af; }
+
 .tabs { display: flex; gap: 2px; margin-bottom: 14px; border-bottom: 2px solid #e5e7eb; }
 .tab { padding: 10px 18px; background: none; border: none; cursor: pointer; font-size: 14px; color: #6b7280; border-bottom: 2px solid transparent; margin-bottom: -2px; font-weight: 500; font-family: inherit; }
 .tab:hover { color: #1d4ed8; }
@@ -270,8 +282,6 @@ td.act { width: 32px; text-align: center; }
 </div>
 
 <div id="sheetsContainer" class="no-print"></div>
-
-<datalist id="kt-thicknesses-list"></datalist>
 
 <div class="add-nom no-print">
     <button class="btn" id="btnAddSheet">+ Додати номенклатуру</button>
@@ -577,11 +587,15 @@ function sheetHtml(sh, idx) {
     return `<div class="nom-card" data-sid="${sh.id}">
         <div class="nom-head">
             <span class="caret" data-toggle title="${sh.collapsed ? 'Розгорнути' : 'Згорнути'}">${sh.collapsed ? '+' : '−'}</span>
-            <input type="text" list="kt-thicknesses-list" class="name-input" data-thickness
-                   placeholder="оберіть номенклатуру (введіть «4» для пошуку)"
-                   value="${sh.thickness ? 'Лист Сталевий ' + sh.thickness + ' мм' : ''}"
-                   autocomplete="off"
-                   style="font-weight:600; flex: 1 1 240px; min-width: 240px;">
+            <div class="combo" data-combo>
+                <input type="text" class="combo-input" data-thickness autocomplete="off"
+                       placeholder="оберіть номенклатуру (наберіть «4»)"
+                       value="${sh.thickness ? 'Лист Сталевий ' + sh.thickness + ' мм' : ''}">
+                <span class="combo-arrow">▼</span>
+                <div class="combo-list" hidden>
+                    ${KT_PLASMA_PRICES.map(p => `<div class="combo-item" data-value="${p.t}">Лист Сталевий ${p.t} мм</div>`).join('')}
+                </div>
+            </div>
             <div style="display:flex;align-items:center;gap:6px;">
                 <span style="font-size:12px;color:#6b7280;">Ширина різу</span>
                 <div style="position:relative;display:inline-block;">
@@ -629,6 +643,45 @@ function findSheet(el) {
     return state.sheets.find(s => s.id === id);
 }
 
+// Combobox: открыть список при фокусе, выбор по клику, закрыть по клику вне
+document.getElementById('sheetsContainer').addEventListener('focusin', e => {
+    if (!e.target.matches('[data-thickness]')) return;
+    const combo = e.target.closest('[data-combo]');
+    if (combo) { combo.querySelector('.combo-list').hidden = false; comboFilter(combo, e.target.value); }
+});
+document.getElementById('sheetsContainer').addEventListener('mousedown', e => {
+    const item = e.target.closest('.combo-item');
+    if (item && !item.classList.contains('empty')) {
+        e.preventDefault(); // не терять фокус на инпуте
+        const combo = item.closest('[data-combo]');
+        comboCommit(combo, item.textContent);
+    }
+});
+document.getElementById('sheetsContainer').addEventListener('keydown', e => {
+    if (!e.target.matches('[data-thickness]')) return;
+    const combo = e.target.closest('[data-combo]');
+    const list = combo.querySelector('.combo-list');
+    const items = [...list.querySelectorAll('.combo-item:not(.hidden):not(.empty)')];
+    let active = items.findIndex(i => i.classList.contains('active'));
+    if (e.key === 'ArrowDown') { e.preventDefault(); list.hidden = false; active = (active + 1) % items.length; }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); active = active <= 0 ? items.length - 1 : active - 1; }
+    else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (active >= 0 && items[active]) comboCommit(combo, items[active].textContent);
+        else if (items.length === 1) comboCommit(combo, items[0].textContent);
+        return;
+    }
+    else if (e.key === 'Escape') { list.hidden = true; return; }
+    else return;
+    items.forEach((it, i) => it.classList.toggle('active', i === active));
+    if (items[active]) items[active].scrollIntoView({ block: 'nearest' });
+});
+document.addEventListener('click', e => {
+    if (!e.target.closest('[data-combo]')) {
+        document.querySelectorAll('.combo-list').forEach(l => l.hidden = true);
+    }
+});
+
 document.getElementById('sheetsContainer').addEventListener('change', e => {
     const t = e.target;
     const sh = findSheet(t); if (!sh) return;
@@ -639,11 +692,56 @@ document.getElementById('sheetsContainer').addEventListener('change', e => {
         renderSheets(); save();
     }
 });
+function comboFilter(combo, q) {
+    const norm = (q || '').toLowerCase().trim();
+    const items = combo.querySelectorAll('.combo-item');
+    let visible = 0;
+    items.forEach(it => {
+        if (it.classList.contains('empty')) { it.remove(); return; }
+        const match = !norm || it.textContent.toLowerCase().includes(norm);
+        it.classList.toggle('hidden', !match);
+        if (match) visible++;
+        it.classList.remove('active');
+    });
+    let empty = combo.querySelector('.combo-item.empty');
+    if (visible === 0) {
+        if (!empty) {
+            empty = document.createElement('div');
+            empty.className = 'combo-item empty';
+            empty.textContent = 'Нічого не знайдено';
+            combo.querySelector('.combo-list').appendChild(empty);
+        }
+    } else if (empty) {
+        empty.remove();
+    }
+}
+
+function comboCommit(combo, value) {
+    const inp = combo.querySelector('[data-thickness]');
+    const m = value.match(/(\d+(?:[.,]\d+)?)\s*мм/);
+    const v = m ? parseFloat(m[1].replace(',', '.')) : 0;
+    const found = v ? KT_PLASMA_PRICES.find(p => p.t === v) : null;
+    const sh = findSheet(inp); if (!sh) return;
+    if (found) {
+        sh.thickness = v;
+        inp.value = `Лист Сталевий ${v} мм`;
+    } else {
+        sh.thickness = 0;
+        inp.value = '';
+    }
+    combo.querySelector('.combo-list').hidden = true;
+    save();
+}
+
 document.getElementById('sheetsContainer').addEventListener('input', e => {
     const t = e.target;
     const sh = findSheet(t);
     if (!sh) return;
     if (t.matches('[data-thickness]')) {
+        const combo = t.closest('[data-combo]');
+        combo.querySelector('.combo-list').hidden = false;
+        comboFilter(combo, t.value);
+        // онлайн-парсинг текущего значения (без commit, чтобы цена обновлялась если уже совпало)
         const m = t.value.match(/(\d+(?:[.,]\d+)?)\s*мм/);
         if (m) {
             const v = parseFloat(m[1].replace(',', '.'));
@@ -1402,9 +1500,6 @@ document.getElementById('btnCalcSheet').addEventListener('click', () => {
 });
 
 // === Init ===
-// Populate datalist for thickness search
-document.getElementById('kt-thicknesses-list').innerHTML = KT_PLASMA_PRICES.map(p => `<option value="Лист Сталевий ${p.t} мм"></option>`).join('');
-
 load();
 if (state.profiles.length === 0) state.profiles.push(newProfile('', 12000));
 if (state.sheets.length === 0) state.sheets.push(newSheet(1500, 6000));
