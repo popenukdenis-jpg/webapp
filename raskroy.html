@@ -1987,11 +1987,18 @@ function renderResultSheet(report) {
                 <div class="stat cost"><div class="k">Вартість різів</div><div class="v">${fmtMoney(entry.cost || 0)}</div></div>
             </div>`;
         }
-        cvHtml += `<table class="cv-tbl"><thead><tr><th>№</th><th>Форма</th><th>Розмір, мм</th><th>Кількість</th></tr></thead><tbody>`;
+        cvHtml += `<table class="cv-tbl"><thead><tr><th>№</th><th>Форма</th><th>Розмір, мм</th><th>Отвори</th><th>Кількість</th></tr></thead><tbody>`;
         validPieces.forEach((c, i) => {
             const isCircle = c.shape === 'circle';
             const dims = isCircle ? `Ø${c.w}` : `${c.w} × ${c.h}`;
-            cvHtml += `<tr><td>${i + 1}</td><td>${isCircle ? 'коло' : 'прямокутник'}</td><td>${dims}</td><td>${c.qty}</td></tr>`;
+            const validHoles = (Array.isArray(c.holes) ? c.holes : []).filter(h => (h.d|0) > 0 && (h.qty|0) > 0);
+            // Group by diameter
+            const grouped = new Map();
+            for (const h of validHoles) grouped.set(h.d, (grouped.get(h.d) || 0) + (h.qty|0));
+            const holesText = grouped.size
+                ? [...grouped.entries()].map(([d, q]) => `Ø${d}×${q}`).join(', ')
+                : '—';
+            cvHtml += `<tr><td>${i + 1}</td><td>${isCircle ? 'коло' : 'прямокутник'}</td><td>${dims}</td><td>${holesText}</td><td>${c.qty}</td></tr>`;
         });
         cvHtml += `</tbody></table>
             </div>
