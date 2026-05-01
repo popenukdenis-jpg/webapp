@@ -1933,7 +1933,10 @@ function renderResultSheet(report) {
         totalUsed += entry.metrics.reduce((s, m) => s + m.used, 0);
         totalSoldArea += entry.soldArea;
     });
-    const totalCost = report.results.reduce((s, x) => s + (x.cost || 0), 0);
+    const totalCostRaw = report.results.reduce((s, x) => s + (x.cost || 0), 0);
+    const SHEET_MIN_TOTAL = 539;
+    const totalCost = (totalCostRaw > 0 && totalCostRaw < SHEET_MIN_TOTAL) ? SHEET_MIN_TOTAL : totalCostRaw;
+    const minApplied = totalCost !== totalCostRaw;
     const usedPct = totalArea > 0 ? totalUsed / totalArea * 100 : 0;
 
     let html = '';
@@ -1949,8 +1952,9 @@ function renderResultSheet(report) {
             <div class="stat warn"><div class="k">Продано клієнту</div><div class="v">${(totalSoldArea/1e6).toFixed(2)} м²</div></div>
             <div class="stat"><div class="k">Врізок</div><div class="v">${totalPierces}</div></div>
             <div class="stat"><div class="k">Довжина різу</div><div class="v">${(totalCutLen/1000).toFixed(2)} м</div></div>
-            <div class="stat cost"><div class="k">Вартість різів</div><div class="v">${fmtMoney(totalCost)}</div></div>
+            <div class="stat cost"><div class="k">Вартість різів${minApplied ? ' *' : ''}</div><div class="v">${fmtMoney(totalCost)}</div></div>
         </div>
+        ${minApplied ? `<div class="sub" style="margin-top:6px;font-size:12px;color:#7c3aed;">* Мінімальна вартість порізки — ${fmtMoney(SHEET_MIN_TOTAL)}.</div>` : ''}
     </div>`;
 
     report.results.forEach((entry, idx) => {
@@ -2049,7 +2053,7 @@ function renderResultSheet(report) {
             </div>
         </div>`;
     });
-    cvHtml += `<div class="cv-foot">ВСЬОГО: ${totalSheets} ${pluralSheets(totalSheets)} · продано ${(totalSoldArea/1e6).toFixed(2)} м² · Вартість різів: ${fmtMoney(totalCost)}</div>`;
+    cvHtml += `<div class="cv-foot">ВСЬОГО: ${totalSheets} ${pluralSheets(totalSheets)} · продано ${(totalSoldArea/1e6).toFixed(2)} м² · Вартість різів: ${fmtMoney(totalCost)}${minApplied ? ` (мін. ${fmtMoney(SHEET_MIN_TOTAL)})` : ''}</div>`;
     cvHtml += `</div>`;
     html += cvHtml;
 
