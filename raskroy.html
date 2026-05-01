@@ -217,13 +217,39 @@ td.act { width: 32px; text-align: center; }
 .piece-tbl td.num input { text-align: center; }
 .piece-tbl td:first-child { text-align: center; }
 .holes-tr td { background: #f9fafb; padding: 6px 12px; border-top: 1px dashed #e5e7eb; }
-.holes-panel { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.holes-title { font-size: 12px; color: #6b7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
-.hole-row { display: inline-flex; align-items: center; gap: 4px; background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 4px 6px; }
-.hole-row input { padding: 4px 6px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 14px; font-family: inherit; text-align: right; }
-.hole-row .del { padding: 2px 6px; }
-.hole-lbl { font-size: 12px; color: #6b7280; }
-.btn-xs { padding: 4px 10px; font-size: 12px; }
+.holes-btn { padding: 4px 12px; font-size: 12px; background: #fff; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-family: inherit; }
+.holes-btn:hover { background: #f3f4f6; }
+.holes-btn .badge { background: #2563eb; color: #fff; padding: 1px 7px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.holes-btn .badge.zero { background: #d1d5db; }
+
+.modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.55); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 16px; }
+.modal-overlay[hidden] { display: none; }
+.modal { background: #fff; border-radius: 12px; box-shadow: 0 20px 50px rgba(0,0,0,0.25); max-width: 1000px; width: 100%; max-height: 92vh; overflow: hidden; display: flex; flex-direction: column; }
+.modal-header { padding: 14px 18px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; }
+.modal-header h3 { margin: 0; font-size: 16px; }
+.modal-close { background: transparent; border: 0; font-size: 22px; cursor: pointer; color: #6b7280; line-height: 1; padding: 4px 8px; }
+.modal-close:hover { color: #111; }
+.modal-body { padding: 14px 18px; overflow: auto; display: flex; flex-direction: column; gap: 12px; }
+.modal-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.modal-tools .hint { color: #6b7280; font-size: 13px; }
+.modal-tools input[type=number] { width: 90px; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 16px; font-family: inherit; }
+.modal-content { display: flex; gap: 16px; align-items: flex-start; }
+.modal-canvas-wrap { flex: 1; min-width: 300px; display: flex; justify-content: center; align-items: center; background: #f9fafb; border: 1px dashed #d1d5db; border-radius: 8px; padding: 14px; min-height: 300px; }
+.modal-canvas-wrap svg { max-width: 100%; max-height: 60vh; cursor: crosshair; user-select: none; }
+.modal-list { width: 280px; max-height: 60vh; overflow-y: auto; }
+.modal-list h4 { margin: 0 0 8px 0; font-size: 13px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.4px; }
+.modal-list .empty { color: #9ca3af; font-size: 13px; padding: 8px 0; }
+.modal-list .item { display: flex; align-items: center; gap: 6px; padding: 6px; border: 1px solid #e5e7eb; border-radius: 6px; margin-bottom: 6px; background: #fff; }
+.modal-list .item.active { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,0.15); }
+.modal-list .item .num { font-size: 12px; color: #6b7280; min-width: 22px; }
+.modal-list .item input { width: 60px; padding: 4px 6px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 14px; text-align: right; }
+.modal-list .item .del { background: transparent; border: 0; color: #dc2626; cursor: pointer; padding: 2px 6px; }
+.modal-footer { padding: 12px 18px; border-top: 1px solid #e5e7eb; display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.modal-footer .left-actions { display: flex; gap: 8px; }
+@media (max-width: 720px) {
+    .modal-content { flex-direction: column; }
+    .modal-list { width: 100%; max-height: none; }
+}
 .sheet-svg { display: block; background: #fff; border: 1px solid #555; max-width: 100%; max-height: 50vh; width: auto; height: auto; margin: 0 auto; }
 @media print {
     .sheet-svg { max-height: 80vh; }
@@ -304,6 +330,40 @@ td.act { width: 32px; text-align: center; }
 
 </div><!-- /#tabSheet -->
 
+<div class="modal-overlay" id="holesModal" hidden>
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="holesModalTitle">Отвори в деталі</h3>
+            <button class="modal-close" id="holesModalClose">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="modal-tools">
+                <label>Ø нового отвору:
+                    <input type="number" id="newHoleD" min="1" step="1" value="10">
+                    <span style="color:#6b7280;">мм</span>
+                </label>
+                <span class="hint">Клікніть по деталі, щоб додати отвір такого діаметра</span>
+            </div>
+            <div class="modal-content">
+                <div class="modal-canvas-wrap" id="holesCanvasWrap"></div>
+                <div class="modal-list">
+                    <h4>Список отворів</h4>
+                    <div id="holesList"></div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <div class="left-actions">
+                <button class="btn ghost" id="holesModalClear">Очистити всі</button>
+            </div>
+            <div style="display:flex;gap:8px;">
+                <button class="btn ghost" id="holesModalCancel">Скасувати</button>
+                <button class="btn primary" id="holesModalSave">Зберегти</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 // === Состояние ===
 const state = {
@@ -341,6 +401,162 @@ function validPiece(c) {
 }
 
 function newHole() { return { d: 0, qty: 1, x: 0, y: 0 }; }
+
+// === Модалка отворів ===
+const holesEditor = { sheetId: null, pieceIdx: null, piece: null, holes: [], selectedIdx: -1 };
+
+function openHolesModal(sheetId, pieceIdx) {
+    const sh = state.sheets.find(s => s.id === sheetId);
+    if (!sh) return;
+    const piece = sh.pieces[pieceIdx];
+    if (!piece) return;
+    const isCircle = piece.shape === 'circle';
+    if ((piece.w | 0) <= 0 || (!isCircle && (piece.h | 0) <= 0)) {
+        alert('Спочатку вкажіть розміри деталі.');
+        return;
+    }
+    holesEditor.sheetId = sheetId;
+    holesEditor.pieceIdx = pieceIdx;
+    holesEditor.piece = { shape: piece.shape, w: piece.w, h: isCircle ? piece.w : piece.h };
+    holesEditor.holes = (Array.isArray(piece.holes) ? piece.holes : [])
+        .filter(h => (h.d | 0) > 0)
+        .map(h => ({ d: h.d | 0, qty: (h.qty | 0) || 1, x: h.x | 0, y: h.y | 0 }));
+    holesEditor.selectedIdx = -1;
+    const dims = isCircle ? `Ø${piece.w}` : `${piece.w}×${piece.h}`;
+    document.getElementById('holesModalTitle').textContent = `Отвори в деталі ${dims}`;
+    renderHolesModal();
+    document.getElementById('holesModal').hidden = false;
+}
+
+function closeHolesModal() {
+    document.getElementById('holesModal').hidden = true;
+}
+
+function renderHolesModal() {
+    const piece = holesEditor.piece;
+    if (!piece) return;
+    const isCircle = piece.shape === 'circle';
+    const W = piece.w, H = piece.h;
+    // Compute display dimensions for canvas
+    const maxW = 600, maxH = 480;
+    const scale = Math.min(maxW / W, maxH / H, 1.5);
+    const dispW = Math.max(60, W * scale), dispH = Math.max(60, H * scale);
+
+    let svg = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" width="${dispW}" height="${dispH}" style="display:block;">`;
+    if (isCircle) {
+        svg += `<circle cx="${W/2}" cy="${H/2}" r="${W/2}" fill="#dbeafe" stroke="#1d4ed8" stroke-width="${Math.max(1, W/300)}"/>`;
+    } else {
+        svg += `<rect x="0" y="0" width="${W}" height="${H}" fill="#dbeafe" stroke="#1d4ed8" stroke-width="${Math.max(1, Math.min(W,H)/300)}"/>`;
+    }
+    // Crosshair guides at center
+    holesEditor.holes.forEach((h, i) => {
+        const r = h.d / 2;
+        const sel = i === holesEditor.selectedIdx;
+        svg += `<circle cx="${h.x}" cy="${h.y}" r="${r}" fill="${sel ? '#fee2e2' : '#fff'}" stroke="${sel ? '#dc2626' : '#7c2d12'}" stroke-width="${Math.max(1, r/8)}"/>`;
+        const labelSize = Math.max(8, Math.min(W, H) / 30);
+        svg += `<text x="${h.x}" y="${h.y}" text-anchor="middle" dominant-baseline="central" font-size="${labelSize}" font-family="system-ui" fill="#111" pointer-events="none">${h.d}</text>`;
+    });
+    svg += `</svg>`;
+    document.getElementById('holesCanvasWrap').innerHTML = svg;
+
+    // List
+    const listEl = document.getElementById('holesList');
+    if (!holesEditor.holes.length) {
+        listEl.innerHTML = `<div class="empty">Поки що порожньо. Введіть діаметр і клікніть по деталі.</div>`;
+    } else {
+        listEl.innerHTML = holesEditor.holes.map((h, i) => `
+            <div class="item ${i === holesEditor.selectedIdx ? 'active' : ''}" data-idx="${i}">
+                <span class="num">${i + 1}.</span>
+                <span class="hole-lbl">Ø</span>
+                <input type="number" min="1" step="1" value="${h.d}" data-hidx="${i}" data-hk="d">
+                <span class="hole-lbl">X</span>
+                <input type="number" min="0" step="1" value="${h.x}" data-hidx="${i}" data-hk="x">
+                <span class="hole-lbl">Y</span>
+                <input type="number" min="0" step="1" value="${h.y}" data-hidx="${i}" data-hk="y">
+                <button class="del" data-del-hidx="${i}" title="Видалити">✕</button>
+            </div>
+        `).join('');
+    }
+}
+
+// Click on schematic adds a hole at clicked coords
+document.addEventListener('click', e => {
+    const wrap = document.getElementById('holesCanvasWrap');
+    if (!wrap || document.getElementById('holesModal').hidden) return;
+    const svg = wrap.querySelector('svg');
+    if (!svg || !svg.contains(e.target)) return;
+    const rect = svg.getBoundingClientRect();
+    const cx = ((e.clientX - rect.left) / rect.width) * holesEditor.piece.w;
+    const cy = ((e.clientY - rect.top) / rect.height) * holesEditor.piece.h;
+    // Check if clicking on an existing hole (select it)
+    let hitIdx = -1;
+    for (let i = holesEditor.holes.length - 1; i >= 0; i--) {
+        const h = holesEditor.holes[i];
+        const dx = cx - h.x, dy = cy - h.y;
+        if (dx*dx + dy*dy <= (h.d/2) * (h.d/2)) { hitIdx = i; break; }
+    }
+    if (hitIdx >= 0) {
+        holesEditor.selectedIdx = hitIdx;
+        renderHolesModal();
+        return;
+    }
+    const d = parseInt(document.getElementById('newHoleD').value, 10) || 10;
+    holesEditor.holes.push({ d, qty: 1, x: Math.round(cx), y: Math.round(cy) });
+    holesEditor.selectedIdx = holesEditor.holes.length - 1;
+    renderHolesModal();
+});
+
+// Edit/delete in list
+document.addEventListener('input', e => {
+    const t = e.target;
+    if (!t.matches('[data-hidx]')) return;
+    const i = +t.dataset.hidx;
+    const k = t.dataset.hk;
+    if (!holesEditor.holes[i]) return;
+    holesEditor.holes[i][k] = parseInt(t.value, 10) || 0;
+    renderHolesModal();
+});
+
+document.addEventListener('click', e => {
+    const t = e.target;
+    if (t.closest('[data-del-hidx]')) {
+        const idx = +t.closest('[data-del-hidx]').dataset.delHidx;
+        holesEditor.holes.splice(idx, 1);
+        if (holesEditor.selectedIdx >= holesEditor.holes.length) holesEditor.selectedIdx = -1;
+        renderHolesModal();
+        return;
+    }
+    const item = t.closest('.modal-list .item');
+    if (item && !t.matches('input') && !t.closest('button')) {
+        holesEditor.selectedIdx = +item.dataset.idx;
+        renderHolesModal();
+    }
+});
+
+document.getElementById('holesModalClose').addEventListener('click', closeHolesModal);
+document.getElementById('holesModalCancel').addEventListener('click', closeHolesModal);
+document.getElementById('holesModal').addEventListener('click', e => {
+    if (e.target.id === 'holesModal') closeHolesModal();
+});
+document.getElementById('holesModalClear').addEventListener('click', () => {
+    if (!holesEditor.holes.length || confirm('Видалити всі отвори?')) {
+        holesEditor.holes = [];
+        holesEditor.selectedIdx = -1;
+        renderHolesModal();
+    }
+});
+document.getElementById('holesModalSave').addEventListener('click', () => {
+    const sh = state.sheets.find(s => s.id === holesEditor.sheetId);
+    if (!sh) { closeHolesModal(); return; }
+    const piece = sh.pieces[holesEditor.pieceIdx];
+    if (!piece) { closeHolesModal(); return; }
+    piece.holes = holesEditor.holes.filter(h => (h.d | 0) > 0).map(h => ({
+        d: h.d | 0, qty: (h.qty | 0) || 1, x: h.x | 0, y: h.y | 0,
+    }));
+    save();
+    renderSheets();
+    closeHolesModal();
+});
 
 function sheetName(sh) {
     return sh.thickness ? `Лист Сталевий ${sh.thickness} мм` : '';
@@ -778,20 +994,8 @@ function sheetHtml(sh, idx) {
 
     const rows = sh.pieces.map((c, i) => {
         const isCircle = c.shape === 'circle';
-        const holes = Array.isArray(c.holes) ? c.holes : [];
-        const holeRows = holes.map((h, hi) => `
-            <div class="hole-row" data-pi="${i}" data-hi="${hi}">
-                <span class="hole-lbl">Ø</span>
-                <input type="number" min="1" step="1" value="${h.d || ''}" data-pi="${i}" data-hi="${hi}" data-hk="d" placeholder="мм" style="width:70px;">
-                <span class="hole-lbl">×</span>
-                <input type="number" min="1" step="1" value="${h.qty || ''}" data-pi="${i}" data-hi="${hi}" data-hk="qty" placeholder="кіль" style="width:60px;">
-                <span class="hole-lbl">X</span>
-                <input type="number" min="0" step="1" value="${h.x || ''}" data-pi="${i}" data-hi="${hi}" data-hk="x" placeholder="0" style="width:70px;">
-                <span class="hole-lbl">Y</span>
-                <input type="number" min="0" step="1" value="${h.y || ''}" data-pi="${i}" data-hi="${hi}" data-hk="y" placeholder="0" style="width:70px;">
-                <button class="del" data-del-hole="${i}/${hi}" title="Видалити">✕</button>
-            </div>
-        `).join('');
+        const holesCount = Array.isArray(c.holes) ? c.holes.reduce((s, h) => s + ((h.d|0) > 0 ? (h.qty|0 || 1) : 0), 0) : 0;
+        const canAddHoles = isCircle ? (c.w | 0) > 0 : ((c.w | 0) > 0 && (c.h | 0) > 0);
         return `
         <tr>
             <td style="color:#6b7280; font-variant-numeric:tabular-nums; width:40px;">${i + 1}</td>
@@ -802,16 +1006,14 @@ function sheetHtml(sh, idx) {
             <td class="num"><input type="number" min="1" step="1" value="${c.w || ''}" data-pi="${i}" data-k="w" placeholder="${isCircle ? 'Ø' : ''}"></td>
             <td class="num"><input type="number" min="1" step="1" value="${isCircle ? '' : (c.h || '')}" data-pi="${i}" data-k="h" ${isCircle ? 'disabled style="background:#f3f4f6;color:#9ca3af;"' : ''}></td>
             <td class="num"><input type="number" min="1" step="1" value="${c.qty || ''}" data-pi="${i}" data-k="qty"></td>
+            <td class="num">
+                <button class="holes-btn" data-open-holes="${i}" ${canAddHoles ? '' : 'disabled style="opacity:0.5;cursor:not-allowed;"'}>
+                    Отвори <span class="badge ${holesCount === 0 ? 'zero' : ''}">${holesCount}</span>
+                </button>
+            </td>
             <td class="act"><button class="del" data-del-piece="${i}" title="Видалити">✕</button></td>
         </tr>
-        <tr class="holes-tr"><td colspan="6">
-            <div class="holes-panel">
-                <span class="holes-title">Отвори:</span>
-                ${holeRows}
-                <button class="btn ghost btn-xs" data-add-hole="${i}">+ отвір</button>
-            </div>
-        </td></tr>
-    `}).join('') || `<tr><td colspan="6" style="color:#9ca3af; text-align:center; padding:16px;">Додайте рядки кнопкою нижче</td></tr>`;
+    `}).join('') || `<tr><td colspan="7" style="color:#9ca3af; text-align:center; padding:16px;">Додайте рядки кнопкою нижче</td></tr>`;
 
     const totalQty = sh.pieces.reduce((s, c) => s + (validPiece(c) ? c.qty : 0), 0);
 
@@ -845,7 +1047,7 @@ function sheetHtml(sh, idx) {
         <div class="nom-body ${sh.collapsed ? 'hidden' : ''}">
             <table class="piece-tbl">
                 <thead><tr>
-                    <th style="width:40px;">№</th><th style="width:140px;">Форма</th><th>Ширина / Ø, мм</th><th>Довжина, мм</th><th>Кількість</th><th></th>
+                    <th style="width:40px;">№</th><th style="width:140px;">Форма</th><th>Ширина / Ø, мм</th><th>Довжина, мм</th><th>Кількість</th><th style="width:120px;">Отвори</th><th></th>
                 </tr></thead>
                 <tbody>${rows}</tbody>
             </table>
@@ -987,15 +1189,6 @@ document.getElementById('sheetsContainer').addEventListener('input', e => {
     if (t.matches('[data-kerf]')) { sh.kerf = parseInt(t.value, 10) || 0; save(); return; }
     if (t.matches('[data-custom-w]')) { const v = parseInt(t.value, 10) || 0; if (v > 0) { sh.sheetW = v; save(); } return; }
     if (t.matches('[data-custom-h]')) { const v = parseInt(t.value, 10) || 0; if (v > 0) { sh.sheetH = v; save(); } return; }
-    if (t.matches('[data-hk]')) {
-        const pi = +t.dataset.pi, hi = +t.dataset.hi, hk = t.dataset.hk;
-        const piece = sh.pieces[pi];
-        if (!Array.isArray(piece.holes)) piece.holes = [];
-        if (!piece.holes[hi]) piece.holes[hi] = newHole();
-        piece.holes[hi][hk] = parseInt(t.value, 10) || 0;
-        save();
-        return;
-    }
     if (t.matches('[data-pi]')) {
         const pi = +t.dataset.pi, k = t.dataset.k;
         const piece = sh.pieces[pi];
@@ -1030,18 +1223,11 @@ document.getElementById('sheetsContainer').addEventListener('click', e => {
     const delPiece = t.closest('[data-del-piece]');
     if (delPiece) { sh.pieces.splice(+delPiece.dataset.delPiece, 1); renderSheets(); save(); return; }
     if (t.closest('[data-add-piece]')) { sh.pieces.push({ shape: 'rect', w: 0, h: 0, qty: 0, holes: [] }); renderSheets(); save(); return; }
-    const addHole = t.closest('[data-add-hole]');
-    if (addHole) {
-        const pi = +addHole.dataset.addHole;
-        if (!Array.isArray(sh.pieces[pi].holes)) sh.pieces[pi].holes = [];
-        sh.pieces[pi].holes.push(newHole());
-        renderSheets(); save(); return;
-    }
-    const delHole = t.closest('[data-del-hole]');
-    if (delHole) {
-        const [pi, hi] = delHole.dataset.delHole.split('/').map(Number);
-        sh.pieces[pi].holes.splice(hi, 1);
-        renderSheets(); save(); return;
+    const openHoles = t.closest('[data-open-holes]');
+    if (openHoles) {
+        const pi = +openHoles.dataset.openHoles;
+        openHolesModal(sh.id, pi);
+        return;
     }
     if (t.closest('[data-clear-pieces]')) {
         if (!sh.pieces.length || confirm('Очистити всі рядки?')) { sh.pieces = []; renderSheets(); save(); }
