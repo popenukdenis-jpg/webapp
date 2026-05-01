@@ -326,6 +326,12 @@ function newSheet(sheetW = 1500, sheetH = 6000, thickness = 0) {
     return { id: nextSheetId++, sheetW, sheetH, thickness, kerf: 0, collapsed: false, pieces: [{ shape: 'rect', w: 0, h: 0, qty: 0 }] };
 }
 
+function validPiece(c) {
+    if ((c.qty | 0) <= 0) return false;
+    if (c.shape === 'circle') return (c.w | 0) > 0;
+    return (c.w | 0) > 0 && (c.h | 0) > 0;
+}
+
 function sheetName(sh) {
     return sh.thickness ? `Лист Сталевий ${sh.thickness} мм` : '';
 }
@@ -965,12 +971,6 @@ document.getElementById('sheetsContainer').addEventListener('input', e => {
     }
 });
 
-function validPiece(c) {
-    if ((c.qty | 0) <= 0) return false;
-    if (c.shape === 'circle') return (c.w | 0) > 0;
-    return (c.w | 0) > 0 && (c.h | 0) > 0;
-}
-
 document.getElementById('sheetsContainer').addEventListener('click', e => {
     const t = e.target;
     const sh = findSheet(t);
@@ -1370,41 +1370,16 @@ function pack2dShelf(piecesIn, sheetW, sheetH, kerf) {
         if (!fitsAsIs && !fitsRot) unplaced.push(it); else placeable.push(it);
     }
 
-    const sortStrategies = [
-        (a, b) => (b.w * b.h - a.w * a.h) || (Math.max(b.w, b.h) - Math.max(a.w, a.h)),
-        (a, b) => Math.max(b.w, b.h) - Math.max(a.w, a.h) || (b.w * b.h - a.w * a.h),
-        (a, b) => (b.w + b.h) - (a.w + a.h),
-        (a, b) => b.h - a.h || b.w - a.w,
-        (a, b) => b.w - a.w || b.h - a.h,
-    ];
-    const heuristics = ['BSSF', 'BLSF', 'BAF', 'BL'];
+    placeable.sort((a, b) => (b.w * b.h - a.w * a.h) || (Math.max(b.w, b.h) - Math.max(a.w, a.h)));
 
-    let bestRun = null;
-    for (const sortFn of sortStrategies) {
-        const sorted = placeable.slice().sort(sortFn);
-        for (const heur of heuristics) {
-            const run = packMaxRects(sorted, sheetW, sheetH, kerf, heur);
-            if (!bestRun || isBetterRun(run, bestRun)) bestRun = run;
-        }
-    }
-
-    return {
-        sheets: bestRun.sheets,
-        unplaced: [...unplaced, ...bestRun.unplaced],
-        sheetW, sheetH, kerf,
-    };
-}
-
-function packMaxRects(sorted, sheetW, sheetH, kerf, heur) {
     const sheets = [];
-    const localUnplaced = [];
-    let remaining = sorted.slice();
+    let remaining = placeable.slice();
     let safety = remaining.length + 5;
     while (remaining.length > 0 && safety-- > 0) {
         const sheet = { freeRects: [{ x: 0, y: 0, w: sheetW, h: sheetH }], placements: [] };
         const stillRemaining = [];
         for (const it of remaining) {
-            const place = mrFindBest(sheet.freeRects, it, heur);
+            const place = mrFindBest(sheet.freeRects, it);
             if (!place) { stillRemaining.push(it); continue; }
             sheet.placements.push({
                 x: place.x, y: place.y, w: place.w, h: place.h,
@@ -1416,38 +1391,27 @@ function packMaxRects(sorted, sheetW, sheetH, kerf, heur) {
             });
             mrPrune(sheet.freeRects);
         }
-        if (sheet.placements.length === 0) { localUnplaced.push(...stillRemaining); break; }
+        if (sheet.placements.length === 0) { unplaced.push(...stillRemaining); break; }
         delete sheet.freeRects;
         sheets.push(sheet);
         remaining = stillRemaining;
     }
-    return { sheets, unplaced: localUnplaced };
+
+    return { sheets, unplaced, sheetW, sheetH, kerf };
 }
 
-function isBetterRun(a, b) {
-    if (a.unplaced.length !== b.unplaced.length) return a.unplaced.length < b.unplaced.length;
-    if (a.sheets.length !== b.sheets.length) return a.sheets.length < b.sheets.length;
-    const sumY = run => run.sheets.reduce((s, sh) =>
-        s + sh.placements.reduce((m, p) => Math.max(m, p.y + p.h), 0), 0);
-    return sumY(a) < sumY(b);
-}
-
-// MaxRects placement scoring: BSSF / BLSF / BAF / BL
-function mrFindBest(freeRects, item, heur) {
-    let best = null, bestS1 = Infinity, bestS2 = Infinity;
+// MaxRects: BSSF (Best Short Side Fit) placement
+function mrFindBest(freeRects, item) {
+    let best = null, bestShort = Infinity, bestLong = Infinity;
     for (const fr of freeRects) {
         const tries = [{ w: item.w, h: item.h }];
         if (item.w !== item.h) tries.push({ w: item.h, h: item.w });
         for (const t of tries) {
             if (t.w > fr.w || t.h > fr.h) continue;
             const lh = fr.w - t.w, lv = fr.h - t.h;
-            let s1, s2;
-            if (heur === 'BSSF')      { s1 = Math.min(lh, lv); s2 = Math.max(lh, lv); }
-            else if (heur === 'BLSF') { s1 = Math.max(lh, lv); s2 = Math.min(lh, lv); }
-            else if (heur === 'BAF')  { s1 = lh * lv;          s2 = Math.min(lh, lv); }
-            else /* BL */             { s1 = fr.y + t.h;       s2 = fr.x; }
-            if (s1 < bestS1 || (s1 === bestS1 && s2 < bestS2)) {
-                bestS1 = s1; bestS2 = s2;
+            const sh = Math.min(lh, lv), lo = Math.max(lh, lv);
+            if (sh < bestShort || (sh === bestShort && lo < bestLong)) {
+                bestShort = sh; bestLong = lo;
                 best = { x: fr.x, y: fr.y, w: t.w, h: t.h };
             }
         }
