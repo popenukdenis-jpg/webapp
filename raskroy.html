@@ -986,7 +986,7 @@ document.getElementById('sheetsContainer').addEventListener('click', e => {
     }
     const delPiece = t.closest('[data-del-piece]');
     if (delPiece) { sh.pieces.splice(+delPiece.dataset.delPiece, 1); renderSheets(); save(); return; }
-    if (t.closest('[data-add-piece]')) { sh.pieces.push({ w: 0, h: 0, qty: 0 }); renderSheets(); save(); return; }
+    if (t.closest('[data-add-piece]')) { sh.pieces.push({ shape: 'rect', w: 0, h: 0, qty: 0 }); renderSheets(); save(); return; }
     if (t.closest('[data-clear-pieces]')) {
         if (!sh.pieces.length || confirm('Очистити всі рядки?')) { sh.pieces = []; renderSheets(); save(); }
         return;
@@ -1794,7 +1794,7 @@ function pluralSheets(n) {
 
 document.getElementById('btnCalcSheet').addEventListener('click', () => {
     if (!state.sheets.length) { alert('Додайте хоча б одну номенклатуру.'); return; }
-    const valid = state.sheets.filter(s => s.pieces.some(c => (c.w|0) > 0 && (c.h|0) > 0 && (c.qty|0) > 0));
+    const valid = state.sheets.filter(s => s.pieces.some(validPiece));
     if (!valid.length) { alert('Заповніть хоча б одну деталь з розмірами та кількістю.'); return; }
     const noThickness = state.sheets.filter(s => !((+s.thickness) > 0));
     if (noThickness.length) { alert('Оберіть номенклатуру (товщину листа) для кожного блоку.'); return; }
