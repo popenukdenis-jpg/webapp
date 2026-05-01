@@ -1828,7 +1828,9 @@ function renderSheetSvg(sheet, sheetW, sheetH, infoLines) {
         }
         const fs = Math.max(28, Math.min(w, h) / 4.5);
         const label = p.shape === 'circle' ? `Ø${p.w}` : `${p.w}×${p.h}${p.rot ? ' ↻' : ''}`;
-        svg += `<text x="${x + w/2}" y="${y + h/2}" text-anchor="middle" dominant-baseline="central" font-size="${fs}" font-family="system-ui" font-weight="600" fill="#111">${label}</text>`;
+        // For circles shift label up so a center hole won't cover it
+        const labelY = p.shape === 'circle' ? (y + h * 0.22) : (y + h / 2);
+        svg += `<text x="${x + w/2}" y="${labelY}" text-anchor="middle" dominant-baseline="central" font-size="${fs}" font-family="system-ui" font-weight="600" fill="#111">${label}</text>`;
         // Holes
         if (Array.isArray(p.holes)) {
             for (const hole of p.holes) {
@@ -1836,6 +1838,8 @@ function renderSheetSvg(sheet, sheetW, sheetH, infoLines) {
                 if ((hole.x | 0) <= 0 && (hole.y | 0) <= 0) continue;
                 const hp = holeDisplayPos(p, hole, isPortrait);
                 svg += `<circle cx="${hp.cx}" cy="${hp.cy}" r="${hole.d / 2}" fill="#fff" stroke="#dc2626" stroke-width="2"/>`;
+                const hfs = Math.max(10, hole.d / 3);
+                svg += `<text x="${hp.cx}" y="${hp.cy}" text-anchor="middle" dominant-baseline="central" font-size="${hfs}" font-family="system-ui" font-weight="600" fill="#111" pointer-events="none">Ø${hole.d}</text>`;
             }
         }
     });
