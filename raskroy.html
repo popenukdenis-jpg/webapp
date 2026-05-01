@@ -435,12 +435,11 @@ function closeHolesModal() {
     document.getElementById('holesModal').hidden = true;
 }
 
-function renderHolesModal() {
+function renderHolesSvg() {
     const piece = holesEditor.piece;
     if (!piece) return;
     const isCircle = piece.shape === 'circle';
     const W = piece.w, H = piece.h;
-    // Compute display dimensions for canvas
     const maxW = 600, maxH = 480;
     const scale = Math.min(maxW / W, maxH / H, 1.5);
     const dispW = Math.max(60, W * scale), dispH = Math.max(60, H * scale);
@@ -451,7 +450,6 @@ function renderHolesModal() {
     } else {
         svg += `<rect x="0" y="0" width="${W}" height="${H}" fill="#dbeafe" stroke="#1d4ed8" stroke-width="${Math.max(1, Math.min(W,H)/300)}"/>`;
     }
-    // Crosshair guides at center
     holesEditor.holes.forEach((h, i) => {
         const r = h.d / 2;
         const sel = i === holesEditor.selectedIdx;
@@ -461,8 +459,9 @@ function renderHolesModal() {
     });
     svg += `</svg>`;
     document.getElementById('holesCanvasWrap').innerHTML = svg;
+}
 
-    // List
+function renderHolesList() {
     const listEl = document.getElementById('holesList');
     if (!holesEditor.holes.length) {
         listEl.innerHTML = `<div class="empty">Поки що порожньо. Введіть діаметр і клікніть по деталі.</div>`;
@@ -480,6 +479,11 @@ function renderHolesModal() {
             </div>
         `).join('');
     }
+}
+
+function renderHolesModal() {
+    renderHolesSvg();
+    renderHolesList();
 }
 
 // Click on schematic adds a hole at clicked coords
@@ -509,7 +513,7 @@ document.addEventListener('click', e => {
     renderHolesModal();
 });
 
-// Edit/delete in list
+// Edit in list — update only the SVG so the input keeps its focus and caret
 document.addEventListener('input', e => {
     const t = e.target;
     if (!t.matches('[data-hidx]')) return;
@@ -517,7 +521,7 @@ document.addEventListener('input', e => {
     const k = t.dataset.hk;
     if (!holesEditor.holes[i]) return;
     holesEditor.holes[i][k] = parseInt(t.value, 10) || 0;
-    renderHolesModal();
+    renderHolesSvg();
 });
 
 document.addEventListener('click', e => {
