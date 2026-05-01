@@ -995,7 +995,6 @@ function sheetHtml(sh, idx) {
     const rows = sh.pieces.map((c, i) => {
         const isCircle = c.shape === 'circle';
         const holesCount = Array.isArray(c.holes) ? c.holes.reduce((s, h) => s + ((h.d|0) > 0 ? (h.qty|0 || 1) : 0), 0) : 0;
-        const canAddHoles = isCircle ? (c.w | 0) > 0 : ((c.w | 0) > 0 && (c.h | 0) > 0);
         return `
         <tr>
             <td style="color:#6b7280; font-variant-numeric:tabular-nums; width:40px;">${i + 1}</td>
@@ -1007,7 +1006,7 @@ function sheetHtml(sh, idx) {
             <td class="num"><input type="number" min="1" step="1" value="${isCircle ? '' : (c.h || '')}" data-pi="${i}" data-k="h" ${isCircle ? 'disabled style="background:#f3f4f6;color:#9ca3af;"' : ''}></td>
             <td class="num"><input type="number" min="1" step="1" value="${c.qty || ''}" data-pi="${i}" data-k="qty"></td>
             <td class="num">
-                <button class="holes-btn" data-open-holes="${i}" ${canAddHoles ? '' : 'disabled style="opacity:0.5;cursor:not-allowed;"'}>
+                <button class="holes-btn" data-open-holes="${i}">
                     Отвори <span class="badge ${holesCount === 0 ? 'zero' : ''}">${holesCount}</span>
                 </button>
             </td>
