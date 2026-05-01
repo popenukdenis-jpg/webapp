@@ -1344,49 +1344,84 @@ function pack2dShelf(piecesIn, sheetW, sheetH, kerf) {
         if (!fitsAsIs && !fitsRot) unplaced.push(it); else placeable.push(it);
     }
 
-    placeable.sort((a, b) => Math.max(b.w, b.h) - Math.max(a.w, a.h) || (b.w * b.h - a.w * a.h));
+    placeable.sort((a, b) => (b.w * b.h - a.w * a.h) || (Math.max(b.w, b.h) - Math.max(a.w, a.h)));
 
     const sheets = [];
-    for (const it of placeable) {
-        let placed = false;
-        for (const sh of sheets) {
-            if (placeOnSheet(sh, it, sheetW, sheetH, kerf)) { placed = true; break; }
+    let remaining = placeable.slice();
+    let safety = remaining.length + 5;
+    while (remaining.length > 0 && safety-- > 0) {
+        const sheet = { freeRects: [{ x: 0, y: 0, w: sheetW, h: sheetH }], placements: [] };
+        const stillRemaining = [];
+        for (const it of remaining) {
+            const place = mrFindBest(sheet.freeRects, it);
+            if (!place) { stillRemaining.push(it); continue; }
+            sheet.placements.push({
+                x: place.x, y: place.y, w: place.w, h: place.h,
+                srcIdx: it.srcIdx, rot: place.w !== it.w
+            });
+            mrSplit(sheet.freeRects, {
+                x: place.x, y: place.y,
+                w: place.w + kerf, h: place.h + kerf
+            });
+            mrPrune(sheet.freeRects);
         }
-        if (!placed) {
-            const ns = { shelves: [], placements: [] };
-            placeOnSheet(ns, it, sheetW, sheetH, kerf);
-            sheets.push(ns);
-        }
+        if (sheet.placements.length === 0) { unplaced.push(...stillRemaining); break; }
+        delete sheet.freeRects;
+        sheets.push(sheet);
+        remaining = stillRemaining;
     }
+
     return { sheets, unplaced, sheetW, sheetH, kerf };
 }
 
-function placeOnSheet(sh, it, sheetW, sheetH, kerf) {
-    // Перебираем существующие полки, пробуем как есть и повёрнутую
-    const orient = (w, h) => ({ w, h });
-    const cands = [orient(it.w, it.h)];
-    if (it.w !== it.h) cands.push(orient(it.h, it.w));
-
-    for (const c of cands) {
-        for (const shelf of sh.shelves) {
-            if (c.h <= shelf.height && shelf.usedW + c.w + (shelf.usedW > 0 ? kerf : 0) <= sheetW) {
-                const x = shelf.usedW + (shelf.usedW > 0 ? kerf : 0);
-                sh.placements.push({ x, y: shelf.y, w: c.w, h: c.h, srcIdx: it.srcIdx, rot: c.w !== it.w });
-                shelf.usedW = x + c.w;
-                return true;
+// MaxRects: BSSF (Best Short Side Fit) placement
+function mrFindBest(freeRects, item) {
+    let best = null, bestShort = Infinity, bestLong = Infinity;
+    for (const fr of freeRects) {
+        const tries = [{ w: item.w, h: item.h }];
+        if (item.w !== item.h) tries.push({ w: item.h, h: item.w });
+        for (const t of tries) {
+            if (t.w > fr.w || t.h > fr.h) continue;
+            const lh = fr.w - t.w, lv = fr.h - t.h;
+            const sh = Math.min(lh, lv), lo = Math.max(lh, lv);
+            if (sh < bestShort || (sh === bestShort && lo < bestLong)) {
+                bestShort = sh; bestLong = lo;
+                best = { x: fr.x, y: fr.y, w: t.w, h: t.h };
             }
         }
     }
-    // Новая полка
-    const yNext = sh.shelves.length ? sh.shelves[sh.shelves.length - 1].y + sh.shelves[sh.shelves.length - 1].height + kerf : 0;
-    for (const c of cands) {
-        if (yNext + c.h <= sheetH && c.w <= sheetW) {
-            sh.shelves.push({ y: yNext, height: c.h, usedW: c.w });
-            sh.placements.push({ x: 0, y: yNext, w: c.w, h: c.h, srcIdx: it.srcIdx, rot: c.w !== it.w });
-            return true;
+    return best;
+}
+
+// Subtract `used` from every overlapping free rect, generating up to 4 new sub-rects each
+function mrSplit(freeRects, used) {
+    for (let i = freeRects.length - 1; i >= 0; i--) {
+        const fr = freeRects[i];
+        if (used.x >= fr.x + fr.w || used.x + used.w <= fr.x ||
+            used.y >= fr.y + fr.h || used.y + used.h <= fr.y) continue;
+        if (used.x > fr.x)
+            freeRects.push({ x: fr.x, y: fr.y, w: used.x - fr.x, h: fr.h });
+        if (used.x + used.w < fr.x + fr.w)
+            freeRects.push({ x: used.x + used.w, y: fr.y, w: fr.x + fr.w - (used.x + used.w), h: fr.h });
+        if (used.y > fr.y)
+            freeRects.push({ x: fr.x, y: fr.y, w: fr.w, h: used.y - fr.y });
+        if (used.y + used.h < fr.y + fr.h)
+            freeRects.push({ x: fr.x, y: used.y + used.h, w: fr.w, h: fr.y + fr.h - (used.y + used.h) });
+        freeRects.splice(i, 1);
+    }
+}
+
+function mrPrune(freeRects) {
+    for (let i = freeRects.length - 1; i >= 0; i--) {
+        for (let j = freeRects.length - 1; j >= 0; j--) {
+            if (i === j) continue;
+            const a = freeRects[j], b = freeRects[i];
+            if (b.x >= a.x && b.y >= a.y &&
+                b.x + b.w <= a.x + a.w && b.y + b.h <= a.y + a.h) {
+                freeRects.splice(i, 1); break;
+            }
         }
     }
-    return false;
 }
 
 function calcSheetMetrics(sheet, kerf) {
