@@ -216,6 +216,14 @@ td.act { width: 32px; text-align: center; }
 .piece-tbl th { text-align: center; }
 .piece-tbl td.num input { text-align: center; }
 .piece-tbl td:first-child { text-align: center; }
+.holes-tr td { background: #f9fafb; padding: 6px 12px; border-top: 1px dashed #e5e7eb; }
+.holes-panel { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.holes-title { font-size: 12px; color: #6b7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
+.hole-row { display: inline-flex; align-items: center; gap: 4px; background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 4px 6px; }
+.hole-row input { padding: 4px 6px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 14px; font-family: inherit; text-align: right; }
+.hole-row .del { padding: 2px 6px; }
+.hole-lbl { font-size: 12px; color: #6b7280; }
+.btn-xs { padding: 4px 10px; font-size: 12px; }
 .sheet-svg { display: block; background: #fff; border: 1px solid #555; max-width: 100%; max-height: 50vh; width: auto; height: auto; margin: 0 auto; }
 @media print {
     .sheet-svg { max-height: 80vh; }
@@ -323,7 +331,7 @@ function newProfile(name = '', barLen = 12000) {
 }
 
 function newSheet(sheetW = 1500, sheetH = 6000, thickness = 0) {
-    return { id: nextSheetId++, sheetW, sheetH, thickness, kerf: 0, collapsed: false, pieces: [{ shape: 'rect', w: 0, h: 0, qty: 0 }] };
+    return { id: nextSheetId++, sheetW, sheetH, thickness, kerf: 0, collapsed: false, pieces: [{ shape: 'rect', w: 0, h: 0, qty: 0, holes: [] }] };
 }
 
 function validPiece(c) {
@@ -331,6 +339,8 @@ function validPiece(c) {
     if (c.shape === 'circle') return (c.w | 0) > 0;
     return (c.w | 0) > 0 && (c.h | 0) > 0;
 }
+
+function newHole() { return { d: 0, qty: 1, x: 0, y: 0 }; }
 
 function sheetName(sh) {
     return sh.thickness ? `Лист Сталевий ${sh.thickness} мм` : '';
@@ -364,7 +374,10 @@ function load() {
                 state.sheets = s.sheets;
                 for (const sh of state.sheets) {
                     if (sh.id >= nextSheetId) nextSheetId = sh.id + 1;
-                    if (Array.isArray(sh.pieces)) for (const c of sh.pieces) if (!c.shape) c.shape = 'rect';
+                    if (Array.isArray(sh.pieces)) for (const c of sh.pieces) {
+                        if (!c.shape) c.shape = 'rect';
+                        if (!Array.isArray(c.holes)) c.holes = [];
+                    }
                 }
             }
             return;
@@ -765,6 +778,20 @@ function sheetHtml(sh, idx) {
 
     const rows = sh.pieces.map((c, i) => {
         const isCircle = c.shape === 'circle';
+        const holes = Array.isArray(c.holes) ? c.holes : [];
+        const holeRows = holes.map((h, hi) => `
+            <div class="hole-row" data-pi="${i}" data-hi="${hi}">
+                <span class="hole-lbl">Ø</span>
+                <input type="number" min="1" step="1" value="${h.d || ''}" data-pi="${i}" data-hi="${hi}" data-hk="d" placeholder="мм" style="width:70px;">
+                <span class="hole-lbl">×</span>
+                <input type="number" min="1" step="1" value="${h.qty || ''}" data-pi="${i}" data-hi="${hi}" data-hk="qty" placeholder="кіль" style="width:60px;">
+                <span class="hole-lbl">X</span>
+                <input type="number" min="0" step="1" value="${h.x || ''}" data-pi="${i}" data-hi="${hi}" data-hk="x" placeholder="0" style="width:70px;">
+                <span class="hole-lbl">Y</span>
+                <input type="number" min="0" step="1" value="${h.y || ''}" data-pi="${i}" data-hi="${hi}" data-hk="y" placeholder="0" style="width:70px;">
+                <button class="del" data-del-hole="${i}/${hi}" title="Видалити">✕</button>
+            </div>
+        `).join('');
         return `
         <tr>
             <td style="color:#6b7280; font-variant-numeric:tabular-nums; width:40px;">${i + 1}</td>
@@ -777,6 +804,13 @@ function sheetHtml(sh, idx) {
             <td class="num"><input type="number" min="1" step="1" value="${c.qty || ''}" data-pi="${i}" data-k="qty"></td>
             <td class="act"><button class="del" data-del-piece="${i}" title="Видалити">✕</button></td>
         </tr>
+        <tr class="holes-tr"><td colspan="6">
+            <div class="holes-panel">
+                <span class="holes-title">Отвори:</span>
+                ${holeRows}
+                <button class="btn ghost btn-xs" data-add-hole="${i}">+ отвір</button>
+            </div>
+        </td></tr>
     `}).join('') || `<tr><td colspan="6" style="color:#9ca3af; text-align:center; padding:16px;">Додайте рядки кнопкою нижче</td></tr>`;
 
     const totalQty = sh.pieces.reduce((s, c) => s + (validPiece(c) ? c.qty : 0), 0);
@@ -953,6 +987,15 @@ document.getElementById('sheetsContainer').addEventListener('input', e => {
     if (t.matches('[data-kerf]')) { sh.kerf = parseInt(t.value, 10) || 0; save(); return; }
     if (t.matches('[data-custom-w]')) { const v = parseInt(t.value, 10) || 0; if (v > 0) { sh.sheetW = v; save(); } return; }
     if (t.matches('[data-custom-h]')) { const v = parseInt(t.value, 10) || 0; if (v > 0) { sh.sheetH = v; save(); } return; }
+    if (t.matches('[data-hk]')) {
+        const pi = +t.dataset.pi, hi = +t.dataset.hi, hk = t.dataset.hk;
+        const piece = sh.pieces[pi];
+        if (!Array.isArray(piece.holes)) piece.holes = [];
+        if (!piece.holes[hi]) piece.holes[hi] = newHole();
+        piece.holes[hi][hk] = parseInt(t.value, 10) || 0;
+        save();
+        return;
+    }
     if (t.matches('[data-pi]')) {
         const pi = +t.dataset.pi, k = t.dataset.k;
         const piece = sh.pieces[pi];
@@ -986,7 +1029,20 @@ document.getElementById('sheetsContainer').addEventListener('click', e => {
     }
     const delPiece = t.closest('[data-del-piece]');
     if (delPiece) { sh.pieces.splice(+delPiece.dataset.delPiece, 1); renderSheets(); save(); return; }
-    if (t.closest('[data-add-piece]')) { sh.pieces.push({ shape: 'rect', w: 0, h: 0, qty: 0 }); renderSheets(); save(); return; }
+    if (t.closest('[data-add-piece]')) { sh.pieces.push({ shape: 'rect', w: 0, h: 0, qty: 0, holes: [] }); renderSheets(); save(); return; }
+    const addHole = t.closest('[data-add-hole]');
+    if (addHole) {
+        const pi = +addHole.dataset.addHole;
+        if (!Array.isArray(sh.pieces[pi].holes)) sh.pieces[pi].holes = [];
+        sh.pieces[pi].holes.push(newHole());
+        renderSheets(); save(); return;
+    }
+    const delHole = t.closest('[data-del-hole]');
+    if (delHole) {
+        const [pi, hi] = delHole.dataset.delHole.split('/').map(Number);
+        sh.pieces[pi].holes.splice(hi, 1);
+        renderSheets(); save(); return;
+    }
     if (t.closest('[data-clear-pieces]')) {
         if (!sh.pieces.length || confirm('Очистити всі рядки?')) { sh.pieces = []; renderSheets(); save(); }
         return;
@@ -1359,7 +1415,8 @@ function pack2dShelf(piecesIn, sheetW, sheetH, kerf) {
         const h = isCircle ? w : (p.h | 0);
         const qty = p.qty | 0;
         if (w <= 0 || h <= 0 || qty <= 0) return;
-        for (let q = 0; q < qty; q++) items.push({ id: nid++, w, h, shape: isCircle ? 'circle' : 'rect', srcIdx: ci });
+        const holes = (Array.isArray(p.holes) ? p.holes : []).filter(hh => (hh.d | 0) > 0 && (hh.qty | 0) > 0);
+        for (let q = 0; q < qty; q++) items.push({ id: nid++, w, h, shape: isCircle ? 'circle' : 'rect', holes, srcIdx: ci });
     });
     if (items.length === 0) return { error: 'Не задано жодної деталі.', sheets: [] };
 
@@ -1383,7 +1440,7 @@ function pack2dShelf(piecesIn, sheetW, sheetH, kerf) {
             if (!place) { stillRemaining.push(it); continue; }
             sheet.placements.push({
                 x: place.x, y: place.y, w: place.w, h: place.h,
-                shape: it.shape, srcIdx: it.srcIdx, rot: place.w !== it.w
+                shape: it.shape, holes: it.holes, srcIdx: it.srcIdx, rot: place.w !== it.w
             });
             mrSplit(sheet.freeRects, {
                 x: place.x, y: place.y,
@@ -1489,13 +1546,44 @@ function mrPrune(freeRects) {
     }
 }
 
+// Returns hole center {cx, cy} in display coords. p is a placement, hole has {d, x, y}.
+// hole.x/y is in piece's natural orientation (top-left corner, before pack rotation).
+// Pack rotation (p.rot=true) rotates the piece 90° (we use the formula that makes a
+// hole originally at (hx, hy) within W×H land at (W-hy, hx) in the rotated H×W frame).
+// Portrait transpose flips x and y for display (the SVG already does the same for the rect).
+function holeDisplayPos(p, hole, isPortrait) {
+    let lx, ly; // local coords in placement's display rect
+    if (p.rot) {
+        // Original natural size: pack rotation swapped w/h, so original_h = p.w
+        lx = p.w - hole.y;
+        ly = hole.x;
+    } else {
+        lx = hole.x;
+        ly = hole.y;
+    }
+    if (isPortrait) {
+        // Display swaps x/y: top-left of placement is at (p.y, p.x), size (p.h, p.w)
+        return { cx: p.y + ly, cy: p.x + lx };
+    }
+    return { cx: p.x + lx, cy: p.y + ly };
+}
+
 function calcSheetMetrics(sheet, kerf) {
-    const pierces = sheet.placements.length;
-    const cutLen = sheet.placements.reduce((s, p) =>
-        s + (p.shape === 'circle' ? Math.PI * p.w : 2 * (p.w + p.h)), 0);
-    const used = sheet.placements.reduce((s, p) =>
-        s + (p.shape === 'circle' ? Math.PI * (p.w / 2) * (p.w / 2) : p.w * p.h), 0);
-    const soldH = sheet.placements.reduce((m, p) => Math.max(m, p.y + p.h), 0);
+    let pierces = 0, cutLen = 0, used = 0, soldH = 0;
+    for (const p of sheet.placements) {
+        pierces += 1;
+        cutLen += (p.shape === 'circle' ? Math.PI * p.w : 2 * (p.w + p.h));
+        used += (p.shape === 'circle' ? Math.PI * (p.w / 2) * (p.w / 2) : p.w * p.h);
+        soldH = Math.max(soldH, p.y + p.h);
+        if (Array.isArray(p.holes)) {
+            for (const h of p.holes) {
+                const hd = h.d | 0, hq = h.qty | 0;
+                if (hd <= 0 || hq <= 0) continue;
+                pierces += hq;
+                cutLen += Math.PI * hd * hq;
+            }
+        }
+    }
     return { pierces, cutLen, used, soldH };
 }
 
@@ -1555,6 +1643,15 @@ function renderSheetSvg(sheet, sheetW, sheetH, infoLines) {
         const fs = Math.max(28, Math.min(w, h) / 4.5);
         const label = p.shape === 'circle' ? `Ø${p.w}` : `${p.w}×${p.h}${p.rot ? ' ↻' : ''}`;
         svg += `<text x="${x + w/2}" y="${y + h/2}" text-anchor="middle" dominant-baseline="central" font-size="${fs}" font-family="system-ui" font-weight="600" fill="#111">${label}</text>`;
+        // Holes
+        if (Array.isArray(p.holes)) {
+            for (const hole of p.holes) {
+                if ((hole.d | 0) <= 0) continue;
+                if ((hole.x | 0) <= 0 && (hole.y | 0) <= 0) continue;
+                const hp = holeDisplayPos(p, hole, isPortrait);
+                svg += `<circle cx="${hp.cx}" cy="${hp.cy}" r="${hole.d / 2}" fill="#fff" stroke="#dc2626" stroke-width="2"/>`;
+            }
+        }
     });
     svg += `</svg>`;
     return svg;
@@ -1772,6 +1869,20 @@ function exportDxf(report) {
                         [xOffset + p.x + p.w, yCart + p.h],
                         [xOffset + p.x, yCart + p.h],
                     ], 'PARTS');
+                }
+                // Holes — CIRCLE entities at placement-relative (x, y)
+                if (Array.isArray(p.holes)) {
+                    for (const hole of p.holes) {
+                        if ((hole.d | 0) <= 0) continue;
+                        if ((hole.x | 0) <= 0 && (hole.y | 0) <= 0) continue;
+                        // Local position respecting pack rotation
+                        let lx, ly;
+                        if (p.rot) { lx = p.w - hole.y; ly = hole.x; }
+                        else       { lx = hole.x;        ly = hole.y; }
+                        const hcx = xOffset + p.x + lx;
+                        const hcyCart = r.sheetH - (p.y + ly); // Y вверх
+                        dxf += `0\nCIRCLE\n8\nPARTS\n10\n${hcx}\n20\n${hcyCart}\n30\n0\n40\n${hole.d / 2}\n`;
+                    }
                 }
             });
             xOffset += r.sheetW + gap;
