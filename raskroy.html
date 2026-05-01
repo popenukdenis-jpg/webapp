@@ -1393,11 +1393,50 @@ function pack2dShelf(piecesIn, sheetW, sheetH, kerf) {
         }
         if (sheet.placements.length === 0) { unplaced.push(...stillRemaining); break; }
         delete sheet.freeRects;
+        compactSheet(sheet, sheetW, sheetH, kerf);
         sheets.push(sheet);
         remaining = stillRemaining;
     }
 
     return { sheets, unplaced, sheetW, sheetH, kerf };
+}
+
+// Lift each placement to the topmost-leftmost free position; allows rotation.
+// Iterates until no further improvement.
+function compactSheet(sheet, sheetW, sheetH, kerf) {
+    let improved = true, guard = sheet.placements.length * 4;
+    while (improved && guard-- > 0) {
+        improved = false;
+        const order = [...sheet.placements].sort((a, b) =>
+            (b.y + b.h) - (a.y + a.h) || b.x - a.x);
+        for (const p of order) {
+            let freeRects = [{ x: 0, y: 0, w: sheetW, h: sheetH }];
+            for (const o of sheet.placements) {
+                if (o === p) continue;
+                mrSplit(freeRects, { x: o.x, y: o.y, w: o.w + kerf, h: o.h + kerf });
+                mrPrune(freeRects);
+            }
+            // Allow rotation only for non-square rectangles; circles already have w === h
+            const tries = [{ w: p.w, h: p.h, rot: p.rot }];
+            if (p.shape !== 'circle' && p.w !== p.h) tries.push({ w: p.h, h: p.w, rot: !p.rot });
+            let best = null;
+            for (const fr of freeRects) {
+                for (const t of tries) {
+                    if (t.w > fr.w || t.h > fr.h) continue;
+                    // Top-left preference: minimize y, then x
+                    const score = fr.y * 1e7 + fr.x;
+                    if (!best || score < best.score) best = { x: fr.x, y: fr.y, w: t.w, h: t.h, rot: t.rot, score };
+                }
+            }
+            if (!best) continue;
+            const newBottom = best.y + best.h;
+            const oldBottom = p.y + p.h;
+            if (newBottom < oldBottom || (newBottom === oldBottom && (best.y < p.y || (best.y === p.y && best.x < p.x)))) {
+                p.x = best.x; p.y = best.y; p.w = best.w; p.h = best.h; p.rot = best.rot;
+                improved = true;
+            }
+        }
+    }
 }
 
 // MaxRects: BSSF (Best Short Side Fit) placement
