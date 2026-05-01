@@ -217,10 +217,9 @@ td.act { width: 32px; text-align: center; }
 .piece-tbl td.num input { text-align: center; }
 .piece-tbl td:first-child { text-align: center; }
 .holes-tr td { background: #f9fafb; padding: 6px 12px; border-top: 1px dashed #e5e7eb; }
-.holes-btn { padding: 4px 12px; font-size: 12px; background: #fff; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-family: inherit; }
-.holes-btn:hover { background: #f3f4f6; }
+.holes-btn { padding: 5px 12px; font-size: 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-family: inherit; color: #1d4ed8; font-weight: 500; }
+.holes-btn:hover { background: #dbeafe; border-color: #93c5fd; }
 .holes-btn .badge { background: #2563eb; color: #fff; padding: 1px 7px; border-radius: 10px; font-size: 11px; font-weight: 600; }
-.holes-btn .badge.zero { background: #d1d5db; }
 
 .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.55); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 16px; }
 .modal-overlay[hidden] { display: none; }
@@ -1007,7 +1006,7 @@ function sheetHtml(sh, idx) {
             <td class="num"><input type="number" min="1" step="1" value="${c.qty || ''}" data-pi="${i}" data-k="qty"></td>
             <td class="num">
                 <button class="holes-btn" data-open-holes="${i}">
-                    Отвори <span class="badge ${holesCount === 0 ? 'zero' : ''}">${holesCount}</span>
+                    ${holesCount === 0 ? '+ Отвір' : `Отвори <span class="badge">${holesCount}</span>`}
                 </button>
             </td>
             <td class="act"><button class="del" data-del-piece="${i}" title="Видалити">✕</button></td>
