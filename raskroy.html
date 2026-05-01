@@ -1843,15 +1843,50 @@ function renderSheetSvg(sheet, sheetW, sheetH, infoLines) {
         } else {
             svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${fill}" stroke="#1f2937" stroke-width="3"/>`;
         }
-        const label = p.shape === 'circle' ? `Ø${p.w}` : `${p.w}×${p.h}${p.rot ? ' ↻' : ''}`;
-        // Розмір шрифта: вписуємо в ширину деталі (мінус ~10%) і в третину висоти.
+        const label = p.shape === 'circle' ? `Ø${p.w}` : `${p.w}×${p.h}`;
         const fsByW = (w * 0.85) / Math.max(label.length * 0.55, 4);
         const fsByH = h / 3;
-        const fs = Math.max(14, Math.min(fsByW, fsByH));
-        // Якщо є отвори або це коло — піднімаємо підпис у верхню частину, щоб не перекривався
-        const hasHoles = Array.isArray(p.holes) && p.holes.some(hh => (hh.d|0) > 0 && ((hh.x|0) > 0 || (hh.y|0) > 0));
-        const labelY = (p.shape === 'circle' || hasHoles) ? (y + Math.max(fs * 0.65, h * 0.18)) : (y + h / 2);
-        svg += `<text x="${x + w/2}" y="${labelY}" text-anchor="middle" dominant-baseline="central" font-size="${fs}" font-family="system-ui" font-weight="600" fill="#111">${label}</text>`;
+        let fs = Math.max(14, Math.min(fsByW, fsByH));
+        const cx = x + w / 2;
+        // Hole bounds in display coords for collision testing
+        const holesD = (Array.isArray(p.holes) ? p.holes : [])
+            .filter(hh => (hh.d|0) > 0 && ((hh.x|0) > 0 || (hh.y|0) > 0))
+            .map(hh => { const hp = holeDisplayPos(p, hh, isPortrait); return { cx: hp.cx, cy: hp.cy, r: hh.d/2 }; });
+        const labelOverlaps = (cyy, fSize) => {
+            const halfW = fSize * label.length * 0.55 / 2;
+            const halfH = fSize * 0.6;
+            const rx = cx - halfW, ry = cyy - halfH, rw = halfW * 2, rh = halfH * 2;
+            if (rx < x || rx + rw > x + w || ry < y || ry + rh > y + h) return true; // outside piece
+            for (const c of holesD) {
+                const closestX = Math.max(rx, Math.min(c.cx, rx + rw));
+                const closestY = Math.max(ry, Math.min(c.cy, ry + rh));
+                const dx = c.cx - closestX, dy = c.cy - closestY;
+                if (dx*dx + dy*dy < c.r * c.r) return true;
+            }
+            return false;
+        };
+        // Search a fitting (cy, fs) inside the piece
+        let labelY = -1;
+        for (let attempt = 0; attempt < 4 && labelY < 0; attempt++) {
+            const cands = [y + fs * 0.65, y + h * 0.20, y + h / 2, y + h * 0.80, y + h - fs * 0.65];
+            for (const cyy of cands) {
+                if (!labelOverlaps(cyy, fs)) { labelY = cyy; break; }
+            }
+            if (labelY < 0) fs = Math.max(10, fs * 0.75);
+        }
+        if (labelY >= 0) {
+            svg += `<text x="${cx}" y="${labelY}" text-anchor="middle" dominant-baseline="central" font-size="${fs}" font-family="system-ui" font-weight="600" fill="#111">${label}</text>`;
+        } else {
+            // Callout: вивести підпис під деталлю (або над, якщо знизу немає місця) з лінією-вказівником
+            const baseFs = Math.max(14, Math.min(fsByW, fsByH));
+            const below = (y + h + baseFs * 1.6 < dispH);
+            const tipY = below ? (y + h) : y;
+            const cyy = below ? (y + h + baseFs * 1.1) : (y - baseFs * 0.5);
+            const stroke = Math.max(1, baseFs * 0.06);
+            svg += `<line x1="${cx}" y1="${tipY}" x2="${cx}" y2="${cyy + (below ? -baseFs*0.55 : baseFs*0.55)}" stroke="#111" stroke-width="${stroke}"/>`;
+            svg += `<circle cx="${cx}" cy="${tipY}" r="${stroke * 1.6}" fill="#111"/>`;
+            svg += `<text x="${cx}" y="${cyy}" text-anchor="middle" dominant-baseline="central" font-size="${baseFs}" font-family="system-ui" font-weight="600" fill="#111">${label}</text>`;
+        }
         // Holes
         if (Array.isArray(p.holes)) {
             for (const hole of p.holes) {
