@@ -235,14 +235,16 @@ td.act { width: 32px; text-align: center; }
 .modal-content { display: flex; gap: 16px; align-items: flex-start; }
 .modal-canvas-wrap { flex: 1; min-width: 300px; display: flex; justify-content: center; align-items: center; background: #f9fafb; border: 1px dashed #d1d5db; border-radius: 8px; padding: 14px; min-height: 300px; }
 .modal-canvas-wrap svg { max-width: 100%; max-height: 60vh; cursor: crosshair; user-select: none; }
-.modal-list { width: 280px; max-height: 60vh; overflow-y: auto; }
+.modal-list { width: 280px; max-height: 60vh; overflow-y: auto; overflow-x: hidden; }
 .modal-list h4 { margin: 0 0 8px 0; font-size: 13px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.4px; }
 .modal-list .empty { color: #9ca3af; font-size: 13px; padding: 8px 0; }
-.modal-list .item { display: flex; align-items: center; gap: 6px; padding: 6px; border: 1px solid #e5e7eb; border-radius: 6px; margin-bottom: 6px; background: #fff; }
+.modal-list .item { display: flex; align-items: center; gap: 4px; padding: 5px 6px; border: 1px solid #e5e7eb; border-radius: 6px; margin-bottom: 6px; background: #fff; }
 .modal-list .item.active { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,0.15); }
-.modal-list .item .num { font-size: 12px; color: #6b7280; min-width: 22px; }
-.modal-list .item input { width: 60px; padding: 4px 6px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 14px; text-align: right; }
-.modal-list .item .del { background: transparent; border: 0; color: #dc2626; cursor: pointer; padding: 2px 6px; }
+.modal-list .item .num { font-size: 12px; color: #6b7280; min-width: 18px; flex-shrink: 0; }
+.modal-list .item input { width: 48px; min-width: 0; padding: 4px 6px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 14px; text-align: right; }
+.modal-list .item .hole-lbl { flex-shrink: 0; }
+.modal-list .item .del { background: transparent; border: 1px solid transparent; color: #dc2626; cursor: pointer; padding: 2px 8px; font-size: 14px; line-height: 1; flex-shrink: 0; margin-left: auto; border-radius: 4px; }
+.modal-list .item .del:hover { background: #fee2e2; border-color: #fecaca; }
 .modal-footer { padding: 12px 18px; border-top: 1px solid #e5e7eb; display: flex; justify-content: space-between; gap: 8px; align-items: center; }
 .modal-footer .left-actions { display: flex; gap: 8px; }
 @media (max-width: 720px) {
