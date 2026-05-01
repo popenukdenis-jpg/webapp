@@ -390,8 +390,10 @@ function newProfile(name = '', barLen = 12000) {
 }
 
 function newSheet(sheetW = 1500, sheetH = 6000, thickness = 0) {
-    return { id: nextSheetId++, sheetW, sheetH, thickness, kerf: 0, collapsed: false, pieces: [{ shape: 'rect', w: 0, h: 0, qty: 0, holes: [] }] };
+    return { id: nextSheetId++, sheetW, sheetH, thickness, kerf: 0, collapsed: false, pieces: [{ shape: 'rect', w: 0, h: 0, qty: 1, holes: [] }] };
 }
+
+function newPiece() { return { shape: 'rect', w: 0, h: 0, qty: 1, holes: [] }; }
 
 function validPiece(c) {
     if ((c.qty | 0) <= 0) return false;
@@ -1220,7 +1222,7 @@ document.getElementById('sheetsContainer').addEventListener('click', e => {
     }
     const delPiece = t.closest('[data-del-piece]');
     if (delPiece) { sh.pieces.splice(+delPiece.dataset.delPiece, 1); renderSheets(); save(); return; }
-    if (t.closest('[data-add-piece]')) { sh.pieces.push({ shape: 'rect', w: 0, h: 0, qty: 0, holes: [] }); renderSheets(); save(); return; }
+    if (t.closest('[data-add-piece]')) { sh.pieces.push(newPiece()); renderSheets(); save(); return; }
     const openHoles = t.closest('[data-open-holes]');
     if (openHoles) {
         const pi = +openHoles.dataset.openHoles;
@@ -2096,6 +2098,12 @@ document.getElementById('btnCalcSheet').addEventListener('click', () => {
     if (!valid.length) { alert('Заповніть хоча б одну деталь з розмірами та кількістю.'); return; }
     const noThickness = state.sheets.filter(s => !((+s.thickness) > 0));
     if (noThickness.length) { alert('Оберіть номенклатуру (товщину листа) для кожного блоку.'); return; }
+    const incompleteRows = [];
+    state.sheets.forEach((s, si) => s.pieces.forEach((c, pi) => {
+        const hasDims = c.shape === 'circle' ? (c.w | 0) > 0 : ((c.w | 0) > 0 && (c.h | 0) > 0);
+        if (hasDims && (c.qty | 0) <= 0) incompleteRows.push(`№${si + 1} рядок ${pi + 1}`);
+    }));
+    if (incompleteRows.length && !confirm(`Кількість не вказана для: ${incompleteRows.join(', ')}. Ці деталі будуть пропущені. Продовжити?`)) return;
 
     const results = state.sheets.map(s => ({
         profile: s,
