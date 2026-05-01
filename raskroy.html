@@ -1799,22 +1799,24 @@ function renderSheetSvg(sheet, sheetW, sheetH, infoLines) {
         // лист, fallback — у нижньому-правому кутку самого блоку.
         if (infoLines && infoLines.length) {
             const fs = Math.max(36, Math.min(sw, sh) / 22);
-            const blockHeight = infoLines.length * fs * 1.2;
             const unusedRight = dispW - sw;       // вільна смуга праворуч (для портрета)
             const unusedBelow = dispH - sh;       // вільна смуга знизу (для ландшафта)
-            let tx, ty;
+            let tx, ty, anchor;
             if (isPortrait && unusedRight > fs * 3) {
-                tx = dispW - 30;
+                tx = sw + 30;
                 ty = dispH - 30;
+                anchor = 'start';
             } else if (!isPortrait && unusedBelow > fs * 2) {
-                tx = dispW - 30;
+                tx = 30;
                 ty = dispH - 30;
+                anchor = 'start';
             } else {
                 tx = sx + sw - 30;
                 ty = sy + sh - 30;
+                anchor = 'end';
             }
             const startY = ty - (infoLines.length - 1) * fs * 1.2;
-            let textBlock = `<text x="${tx}" y="${startY}" text-anchor="end" font-size="${fs}" font-family="system-ui" font-weight="700" fill="#7f1d1d">`;
+            let textBlock = `<text x="${tx}" y="${startY}" text-anchor="${anchor}" font-size="${fs}" font-family="system-ui" font-weight="700" fill="#7f1d1d">`;
             infoLines.forEach((line, i) => {
                 textBlock += `<tspan x="${tx}" ${i === 0 ? '' : `dy="${fs * 1.2}"`}>${esc(line)}</tspan>`;
             });
