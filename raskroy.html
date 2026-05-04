@@ -142,6 +142,61 @@ select, textarea, .btn, button, .toggle button, .tab, .holes-btn,
 .tabs .tab { border-radius: 8px 8px 0 0 !important; }
 .badge, .pill { border-radius: 999px !important; }
 
+@media (max-width: 720px) {
+  .nom-card table.pieces-tbl,
+  .nom-card .pieces-table { display: none !important; }
+
+  .pieces-cards { display: flex; flex-direction: column; gap: 8px; }
+  .pc-card {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 10px 10px 8px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "num title del"
+      "fields fields fields"
+      "extra extra extra";
+    gap: 6px 8px;
+    align-items: center;
+  }
+  .pc-card .pc-num {
+    grid-area: num;
+    font-size: 11px;
+    color: #6b7280;
+    font-variant-numeric: tabular-nums;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-weight: 700;
+  }
+  .pc-card .pc-title { grid-area: title; font-size: 12px; color: #6b7280; }
+  .pc-card .pc-del { grid-area: del; width: 36px !important; height: 36px !important; }
+  .pc-card .pc-fields { grid-area: fields; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .pc-card .pc-fields.cols-2 { grid-template-columns: 1fr 1fr; }
+  .pc-card .pc-field { display: flex; flex-direction: column; gap: 2px; }
+  .pc-card .pc-field label { font-size: 10px; color: #6b7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
+  .pc-card .pc-field input,
+  .pc-card .pc-field select {
+    width: 100%;
+    padding: 8px 10px !important;
+    font-size: 16px !important;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    border: 1px solid #d1d5db !important;
+    border-radius: 8px !important;
+    background: #fff !important;
+  }
+  .pc-card .pc-extra { grid-area: extra; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 2px; }
+  .pc-card .pc-extra .holes-btn { flex: 1; text-align: center; min-height: 36px; }
+}
+
+@media (min-width: 721px) {
+  .pieces-cards { display: none !important; }
+}
+
 @page { size: A4; margin: 10mm; }
 @media print {
     body { background: #fff; padding: 0; max-width: none; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -818,6 +873,25 @@ function profileHtml(p, idx) {
         </tr>
     `).join('') || `<tr><td colspan="4" style="color:#9ca3af; text-align:center; padding:16px;">Додайте рядки кнопкою нижче</td></tr>`;
 
+    const cardsInner = p.cuts.map((c, i) => `
+        <div class="pc-card">
+            <span class="pc-num">№${i + 1}</span>
+            <span class="pc-title">Відрізок</span>
+            <button class="del pc-del" data-del-cut="${i}" title="Видалити" aria-label="Видалити"></button>
+            <div class="pc-fields cols-2">
+                <div class="pc-field">
+                    <label>Довжина, мм</label>
+                    <input type="number" min="1" step="1" value="${c.length || ''}" data-ci="${i}" data-k="length">
+                </div>
+                <div class="pc-field">
+                    <label>Кількість</label>
+                    <input type="number" min="1" step="1" value="${c.qty || ''}" data-ci="${i}" data-k="qty">
+                </div>
+            </div>
+        </div>
+    `).join('') || `<div style="color:#9ca3af; text-align:center; padding:16px;">Додайте рядки кнопкою нижче</div>`;
+    const cardsHtml = `<div class="pieces-cards">${cardsInner}</div>`;
+
     const totalCuts = p.cuts.reduce((s, c) => s + ((c.length | 0) > 0 && (c.qty | 0) > 0 ? c.qty : 0), 0);
 
     return `<div class="nom-card" data-pid="${p.id}">
@@ -855,12 +929,13 @@ function profileHtml(p, idx) {
             <button class="nom-del" data-del-prof title="Видалити номенклатуру" aria-label="Видалити номенклатуру"></button>
         </div>
         <div class="nom-body ${p.collapsed ? 'hidden' : ''}">
-            <table>
+            <table class="pieces-tbl">
                 <thead><tr>
                     <th style="width:40px;">№</th><th>Довжина, мм</th><th>Кількість</th><th></th>
                 </tr></thead>
                 <tbody>${rows}</tbody>
             </table>
+            ${cardsHtml}
             <div class="toolbar">
                 <button class="btn" data-add-cut>+ рядок</button>
                 <button class="btn ghost" data-clear-cuts>Очистити</button>
@@ -1158,6 +1233,42 @@ function sheetHtml(sh, idx) {
         </tr>
     `}).join('') || `<tr><td colspan="7" style="color:#9ca3af; text-align:center; padding:16px;">Додайте рядки кнопкою нижче</td></tr>`;
 
+    const pieceCardsInner = sh.pieces.map((c, i) => {
+        const isCircle = c.shape === 'circle';
+        const holesCount = Array.isArray(c.holes) ? c.holes.reduce((s, h) => s + ((h.d|0) > 0 ? (h.qty|0 || 1) : 0), 0) : 0;
+        return `
+        <div class="pc-card">
+            <span class="pc-num">№${i + 1}</span>
+            <span class="pc-title">${isCircle ? 'Коло' : 'Прямокутник'}</span>
+            <button class="del pc-del" data-del-piece="${i}" title="Видалити" aria-label="Видалити"></button>
+            <div class="pc-fields">
+                <div class="pc-field">
+                    <label>Форма</label>
+                    <select data-pi="${i}" data-k="shape">
+                        <option value="rect" ${!isCircle ? 'selected' : ''}>прямокутник</option>
+                        <option value="circle" ${isCircle ? 'selected' : ''}>коло</option>
+                    </select>
+                </div>
+                <div class="pc-field">
+                    <label>${isCircle ? 'Ø, мм' : 'Ширина, мм'}</label>
+                    <input type="number" min="1" step="1" value="${c.w || ''}" data-pi="${i}" data-k="w">
+                </div>
+                <div class="pc-field">
+                    <label>Довжина, мм</label>
+                    <input type="number" min="1" step="1" value="${isCircle ? '' : (c.h || '')}" data-pi="${i}" data-k="h" ${isCircle ? 'disabled' : ''}>
+                </div>
+                <div class="pc-field" style="grid-column: span 3;">
+                    <label>Кількість</label>
+                    <input type="number" min="1" step="1" value="${c.qty || ''}" data-pi="${i}" data-k="qty">
+                </div>
+            </div>
+            <div class="pc-extra">
+                <button class="holes-btn" data-open-holes="${i}">${holesCount === 0 ? '+ Отвір' : `Отвори <span class="badge">${holesCount}</span>`}</button>
+            </div>
+        </div>
+    `;}).join('') || `<div style="color:#9ca3af; text-align:center; padding:16px;">Додайте рядки кнопкою нижче</div>`;
+    const pieceCardsHtml = `<div class="pieces-cards">${pieceCardsInner}</div>`;
+
     const totalQty = sh.pieces.reduce((s, c) => s + (validPiece(c) ? c.qty : 0), 0);
 
     return `<div class="nom-card" data-sid="${sh.id}">
@@ -1188,12 +1299,13 @@ function sheetHtml(sh, idx) {
             <button class="nom-del" data-del-sheet title="Видалити номенклатуру" aria-label="Видалити номенклатуру"></button>
         </div>
         <div class="nom-body ${sh.collapsed ? 'hidden' : ''}">
-            <table class="piece-tbl">
+            <table class="piece-tbl pieces-tbl">
                 <thead><tr>
                     <th style="width:40px;">№</th><th style="width:140px;">Форма</th><th>Ширина / Ø, мм</th><th>Довжина, мм</th><th>Кількість</th><th style="width:120px;">Отвори</th><th></th>
                 </tr></thead>
                 <tbody>${rows}</tbody>
             </table>
+            ${pieceCardsHtml}
             <div class="toolbar">
                 <button class="btn" data-add-piece>+ рядок</button>
                 <button class="btn ghost" data-clear-pieces>Очистити</button>
