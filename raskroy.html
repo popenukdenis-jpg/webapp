@@ -2458,8 +2458,7 @@ document.getElementById('btnCalcSheet').addEventListener('click', () => {
 
 // === Init ===
 load();
-if (state.profiles.length === 0) state.profiles.push(newProfile('', 12000));
-if (state.sheets.length === 0) state.sheets.push(newSheet(1500, 6000));
+// Start with no pre-filled nomenclatures — empty-state UI prompts user to add the first one.
 applyStateToUI();
 renderProfiles();
 renderSheets();
