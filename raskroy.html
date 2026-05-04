@@ -6,11 +6,34 @@
 <title>КТ Сталь · Калькулятор порізки</title>
 <style>
 * { box-sizing: border-box; }
+:root {
+    --kt-yellow:        #ffe600;
+    --kt-yellow-hover:  #ffd000;
+    --kt-yellow-strong: #f0b800;
+    --kt-yellow-tint:   #fffbe6;
+    --kt-yellow-tint-2: #fff3b0;
+    --kt-yellow-tint-3: #ffe066;
+    --kt-yellow-ring:   rgba(255,208,0,0.38);
+    --kt-graphite:      #3a3f4a;
+    --kt-graphite-2:    #4a505c;
+    --kt-graphite-3:    #6b7280;
+}
 html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: #f4f5f7; color: #1f2937; }
 body { padding: 16px; max-width: 1100px; margin: 0 auto; }
 h1 { font-size: 22px; margin: 0 0 4px 0; }
 h2 { font-size: 15px; margin: 0 0 10px 0; color: #374151; text-transform: uppercase; letter-spacing: 0.5px; }
-.sub { color: #6b7280; font-size: 13px; margin-bottom: 18px; }
+.sub { color: #6b7280; font-size: 13px; }
+header h1 { color: #fff; }
+header .sub { color: #d1d5db; }
+
+header {
+    background: var(--kt-graphite);
+    margin: 0 0 18px;
+    padding: 14px 18px;
+    display: flex; align-items: center; gap: 16px;
+    border-radius: 8px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06), 0 4px 14px rgba(58,63,74,0.08);
+}
 
 .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px 18px; margin-bottom: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
 
@@ -39,7 +62,8 @@ td input:hover { border-color: #e5e7eb; }
 td input:focus { outline: none; border-color: #3b82f6; background: #fff; box-shadow: 0 0 0 2px rgba(59,130,246,0.15); }
 td.num input { text-align: right; font-variant-numeric: tabular-nums; }
 td.act { width: 32px; text-align: center; }
-.del { background: none; border: none; cursor: pointer; color: #ef4444; font-size: 16px; padding: 2px 6px; border-radius: 4px; }
+.del { background: none; border: none; cursor: pointer; font-size: 0; padding: 4px; border-radius: 4px; width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; }
+.del::before { content: ''; width: 16px; height: 16px; background-color: #ef4444; -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='3 6 5 6 21 6'/><path d='M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6'/><path d='M10 11v6'/><path d='M14 11v6'/><path d='M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2'/></svg>") center/contain no-repeat; mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='3 6 5 6 21 6'/><path d='M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6'/><path d='M10 11v6'/><path d='M14 11v6'/><path d='M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2'/></svg>") center/contain no-repeat; }
 .del:hover { background: #fee2e2; }
 
 .btn { padding: 8px 14px; border: 1px solid #d1d5db; background: #fff; border-radius: 6px; cursor: pointer; font-size: 14px; font-family: inherit; color: #374151; }
@@ -74,12 +98,45 @@ td.act { width: 32px; text-align: center; }
 .bar-svg rect.tail-waste { fill: #fecaca; stroke: #b91c1c; stroke-width: 1; }
 .bar-svg text { font-size: 17px; font-weight: 600; font-family: system-ui; fill: #111827; pointer-events: none; }
 
+.bar-v2 { margin: 10px 0 14px; }
+.bar-v2 .bar-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; font-size: 13px; }
+.bar-v2 .bar-head b { color: #111827; font-weight: 700; }
+.bar-v2 .bar-util { font-size: 11.5px; color: #6b7280; font-variant-numeric: tabular-nums; }
+.bar-v2 .bar-util b { font-weight: 700; }
+.bar-v2 .bar-ruler { position: relative; height: 12px; margin-bottom: 3px; font-size: 9.5px; color: #9ca3af; }
+.bar-v2 .bar-ruler-line { position: absolute; top: 8px; left: 0; right: 0; height: 1px; background: #e5e7eb; }
+.bar-v2 .bar-tick { position: absolute; top: 4px; width: 1px; height: 4px; background: #d1d5db; transform: translateX(-50%); }
+.bar-v2 .bar-tlabel { position: absolute; top: -1px; transform: translateX(-50%); font-variant-numeric: tabular-nums; }
+.bar-v2 .bar-strip { display: flex; height: 20px; border-radius: 4px; overflow: hidden; border: 1px solid #d1d5db; background: #f9fafb; }
+.bar-v2 .bar-seg { position: relative; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-variant-numeric: tabular-nums; font-weight: 600; color: #1f2937; line-height: 1; }
+.bar-v2 .bar-seg + .bar-seg { border-left: 1px solid #fff; }
+.bar-v2 .bar-seg.detail { background: #d3d7df; }
+.bar-v2 .bar-seg.kerf { background: #374151; min-width: 1px; flex-basis: 1px !important; flex-grow: 0; flex-shrink: 0; }
+.bar-v2 .bar-seg.waste { background: #fecaca; color: #7f1d1d; border-left-color: #b91c1c; }
+.bar-v2 .bar-seg.stock { background: #ffe600; border-left-color: #d4a800; }
+.bar-v2 .bar-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; align-items: center; }
+.bar-v2 .bar-pills-label { font-size: 11px; color: #6b7280; margin-right: 2px; }
+.bar-v2 .bar-pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; font-size: 11.5px; border-radius: 999px; background: #f9fafb; color: #1f2937; border: 1px solid #e5e7eb; font-variant-numeric: tabular-nums; line-height: 1.4; }
+.bar-v2 .bar-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: #9ca3af; }
+.bar-v2 .bar-pill b { font-weight: 700; }
+.bar-v2 .bar-pill.waste { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+.bar-v2 .bar-pill.waste .dot { background: #ef4444; }
+.bar-v2 .bar-pill.stock { background: #fff8b8; border-color: #d4a800; color: #1f2937; }
+.bar-v2 .bar-pill.stock .dot { background: #ffe600; }
+
 .unplaced { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 10px 14px; border-radius: 6px; margin-top: 10px; font-size: 13px; }
 
 .legend { display: flex; gap: 14px; font-size: 12px; color: #6b7280; margin-top: 8px; }
 .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 2px; vertical-align: middle; margin-right: 4px; border: 1px solid rgba(0,0,0,0.15); }
 
 .footer-act { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+
+input[type=text], input[type=number], input[type=search], input[type=tel], input[type=email],
+select, textarea, .btn, button, .toggle button, .tab, .holes-btn,
+.combo input, .combo .combo-input { border-radius: 8px !important; }
+.toggle { border-radius: 10px !important; overflow: hidden; }
+.tabs .tab { border-radius: 8px 8px 0 0 !important; }
+.badge, .pill { border-radius: 999px !important; }
 
 @page { size: A4; margin: 10mm; }
 @media print {
@@ -176,7 +233,8 @@ td.act { width: 32px; text-align: center; }
 .nom-head .name-input { flex: 1; min-width: 220px; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 16px; font-family: inherit; background: #fff; }
 .nom-head .name-input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
 .nom-head .nom-meta { font-size: 12px; color: #6b7280; margin-right: auto; }
-.nom-head .nom-del { background: none; border: none; cursor: pointer; color: #ef4444; font-size: 18px; padding: 4px 8px; border-radius: 4px; }
+.nom-head .nom-del { background: none; border: none; cursor: pointer; font-size: 0; padding: 4px; border-radius: 4px; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; }
+.nom-head .nom-del::before { content: ''; width: 18px; height: 18px; background-color: #ef4444; -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='3 6 5 6 21 6'/><path d='M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6'/><path d='M10 11v6'/><path d='M14 11v6'/><path d='M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2'/></svg>") center/contain no-repeat; mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='3 6 5 6 21 6'/><path d='M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6'/><path d='M10 11v6'/><path d='M14 11v6'/><path d='M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2'/></svg>") center/contain no-repeat; }
 .nom-head .nom-del:hover { background: #fee2e2; }
 .nom-body { padding: 12px 14px; }
 .nom-body.hidden { display: none; }
@@ -248,8 +306,74 @@ td.act { width: 32px; text-align: center; }
 .modal-footer { padding: 12px 18px; border-top: 1px solid #e5e7eb; display: flex; justify-content: space-between; gap: 8px; align-items: center; }
 .modal-footer .left-actions { display: flex; gap: 8px; }
 @media (max-width: 720px) {
-    .modal-content { flex-direction: column; }
-    .modal-list { width: 100%; max-height: none; }
+  body { padding: 10px !important; padding-bottom: 80px !important; }
+  header { margin: 0 0 12px !important; padding: 12px 14px !important; gap: 12px; border-radius: 8px; }
+  header h1 { font-size: 16px; }
+  header .sub { font-size: 11px; }
+  .card { padding: 12px !important; margin-bottom: 10px; }
+  h2 { font-size: 13px; margin-bottom: 8px; }
+  .row { gap: 8px; }
+  .field { flex: 1 1 100%; }
+  .bar-v2 .bar-head { font-size: 12px; flex-wrap: wrap; gap: 4px; }
+  .bar-v2 .bar-util { font-size: 11px; }
+  .bar-v2 .bar-ruler { height: 10px; font-size: 9px; }
+  .bar-v2 .bar-strip { height: 16px; }
+  .bar-v2 .bar-seg { font-size: 9.5px; }
+  .bar-v2 .bar-pills { gap: 4px; margin-top: 6px; }
+  .bar-v2 .bar-pills-label { font-size: 10.5px; flex: 1 1 100%; margin-bottom: 2px; }
+  .bar-v2 .bar-pill { font-size: 10.5px; padding: 2px 7px; }
+  .summary { grid-template-columns: repeat(2, 1fr) !important; gap: 6px; margin-bottom: 10px; }
+  .stat { padding: 6px 8px; }
+  .stat .v { font-size: 14px; }
+  .result-body table, .card table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .modal { max-height: 100vh; max-width: 100%; border-radius: 0; }
+  .modal-overlay { padding: 0; }
+  .modal-content { flex-direction: column; }
+  .modal-list { width: 100%; max-height: none; }
+  .nom-head .nom-del { width: 40px !important; height: 40px !important; }
+  .nom-head .caret { width: 36px !important; height: 36px !important; font-size: 20px !important; }
+  td.act .del { width: 36px !important; height: 36px !important; padding: 6px !important; }
+  .holes-btn { padding: 8px 12px !important; min-height: 36px; }
+  .toggle button { min-height: 36px; padding: 7px 12px !important; }
+  .tabs .tab { min-height: 44px; padding: 11px 14px !important; font-size: 13.5px !important; }
+  .btn { min-height: 38px; }
+
+  .live-counter { position: fixed; top: 12px; right: 12px; background: var(--kt-graphite, #3a3f4a); color: #fff; font-size: 11.5px; font-weight: 600; padding: 6px 10px; border-radius: 999px; box-shadow: 0 4px 12px rgba(0,0,0,0.18); z-index: 50; pointer-events: none; display: flex; align-items: center; gap: 8px; font-variant-numeric: tabular-nums; opacity: 0; transform: translateY(-8px); transition: opacity .18s, transform .18s; }
+  .live-counter.visible { opacity: 1; transform: translateY(0); }
+  .live-counter b { color: var(--kt-yellow, #ffe600); font-weight: 700; }
+  .live-counter .sep { width: 1px; height: 11px; background: rgba(255,255,255,0.25); }
+
+  .sticky-cta { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.96); backdrop-filter: saturate(140%) blur(8px); -webkit-backdrop-filter: saturate(140%) blur(8px); border-top: 1px solid #e5e7eb; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)) 12px; z-index: 40; box-shadow: 0 -4px 16px rgba(0,0,0,0.06); }
+  .sticky-cta .btn.primary.big { width: 100%; padding: 14px 18px; font-size: 15px; border-radius: 10px !important; box-shadow: 0 2px 0 var(--kt-yellow-strong, #f0b800), 0 6px 16px rgba(255,208,0,0.4); }
+  .card .btn.primary.big[data-static-cta] { display: none; }
+
+  .empty-state { background: #fff; border: 2px dashed #e5e7eb; border-radius: 10px; padding: 28px 20px; margin-bottom: 12px; text-align: center; }
+  .empty-state .es-emoji { width: 56px; height: 56px; margin: 0 auto 12px; border-radius: 14px; background: var(--kt-yellow-tint, #fff8b8); display: flex; align-items: center; justify-content: center; border: 1px solid #f0e090; }
+  .empty-state .es-emoji svg { width: 28px; height: 28px; color: var(--kt-graphite, #3a3f4a); }
+  .empty-state h3 { font-size: 16px; font-weight: 700; color: var(--kt-graphite, #3a3f4a); margin: 0 0 4px; }
+  .empty-state p { font-size: 13px; color: #6b7280; margin: 0 0 16px; }
+  .empty-state .es-steps { display: flex; gap: 8px; max-width: 480px; margin: 0 auto 18px; justify-content: center; flex-wrap: wrap; }
+  .empty-state .es-step { display: flex; align-items: center; gap: 6px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 999px; padding: 5px 10px 5px 5px; font-size: 11.5px; color: #4a505c; }
+  .empty-state .es-step .num { width: 18px; height: 18px; border-radius: 50%; background: var(--kt-yellow, #ffe600); color: var(--kt-graphite, #3a3f4a); font-weight: 700; font-size: 11px; display: inline-flex; align-items: center; justify-content: center; }
+}
+
+@media (max-width: 380px) {
+  .summary { grid-template-columns: 1fr 1fr !important; }
+  .stat .v { font-size: 13px; }
+  .bar-v2 .bar-strip { height: 14px; }
+  .bar-v2 .bar-seg { font-size: 0; }
+}
+
+@media (min-width: 721px) {
+  .live-counter, .sticky-cta { display: none; }
+  .empty-state { background: #fff; border: 2px dashed #e5e7eb; border-radius: 10px; padding: 28px 20px; margin-bottom: 12px; text-align: center; }
+  .empty-state .es-emoji { width: 56px; height: 56px; margin: 0 auto 12px; border-radius: 14px; background: var(--kt-yellow-tint, #fff8b8); display: flex; align-items: center; justify-content: center; border: 1px solid #f0e090; }
+  .empty-state .es-emoji svg { width: 28px; height: 28px; color: var(--kt-graphite, #3a3f4a); }
+  .empty-state h3 { font-size: 16px; font-weight: 700; color: var(--kt-graphite, #3a3f4a); margin: 0 0 4px; }
+  .empty-state p { font-size: 13px; color: #6b7280; margin: 0 0 16px; }
+  .empty-state .es-steps { display: flex; gap: 8px; max-width: 480px; margin: 0 auto 18px; justify-content: center; flex-wrap: wrap; }
+  .empty-state .es-step { display: flex; align-items: center; gap: 6px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 999px; padding: 5px 10px 5px 5px; font-size: 11.5px; color: #4a505c; }
+  .empty-state .es-step .num { width: 18px; height: 18px; border-radius: 50%; background: var(--kt-yellow, #ffe600); color: var(--kt-graphite, #3a3f4a); font-weight: 700; font-size: 11px; display: inline-flex; align-items: center; justify-content: center; }
 }
 .sheet-svg { display: block; background: #fff; border: 1px solid #555; max-width: 100%; max-height: 50vh; width: auto; height: auto; margin: 0 auto; }
 @media print {
@@ -293,7 +417,7 @@ td.act { width: 32px; text-align: center; }
 </div>
 
 <div class="card no-print" style="text-align:center;">
-    <button class="btn primary big" id="btnCalc">Розрахувати карту розкрою</button>
+    <button class="btn primary big" id="btnCalc" data-static-cta>Розрахувати карту розкрою</button>
 </div>
 
 <div id="result"></div>
@@ -324,7 +448,7 @@ td.act { width: 32px; text-align: center; }
 </div>
 
 <div class="card no-print" style="text-align:center;">
-    <button class="btn primary big" id="btnCalcSheet">Розрахувати розкрій листа</button>
+    <button class="btn primary big" id="btnCalcSheet" data-static-cta>Розрахувати розкрій листа</button>
 </div>
 
 <div id="resultSheet"></div>
@@ -475,7 +599,7 @@ function renderHolesList() {
                 <input type="number" min="0" step="1" value="${h.x}" data-hidx="${i}" data-hk="x">
                 <span class="hole-lbl">Y</span>
                 <input type="number" min="0" step="1" value="${h.y}" data-hidx="${i}" data-hk="y">
-                <button class="del" data-del-hidx="${i}" title="Видалити">✕</button>
+                <button class="del" data-del-hidx="${i}" title="Видалити" aria-label="Видалити"></button>
             </div>
         `).join('');
     }
@@ -686,7 +810,7 @@ function profileHtml(p, idx) {
             <td style="color:#6b7280; font-variant-numeric:tabular-nums; width:40px;">${i + 1}</td>
             <td class="num"><input type="number" min="1" step="1" value="${c.length || ''}" data-ci="${i}" data-k="length"></td>
             <td class="num"><input type="number" min="1" step="1" value="${c.qty || ''}" data-ci="${i}" data-k="qty"></td>
-            <td class="act"><button class="del" data-del-cut="${i}" title="Удалить">✕</button></td>
+            <td class="act"><button class="del" data-del-cut="${i}" title="Видалити" aria-label="Видалити"></button></td>
         </tr>
     `).join('') || `<tr><td colspan="4" style="color:#9ca3af; text-align:center; padding:16px;">Додайте рядки кнопкою нижче</td></tr>`;
 
@@ -724,7 +848,7 @@ function profileHtml(p, idx) {
             </div>
             ${isCustomLen ? `<input type="number" min="100" step="1" value="${p.barLen}" data-custom-len style="width:90px; padding:6px 8px; border:1px solid #d1d5db; border-radius:6px;">` : ''}
             <span class="nom-meta">${totalCuts ? totalCuts + ' відр.' : '—'}</span>
-            <button class="nom-del" data-del-prof title="Видалити номенклатуру">✕</button>
+            <button class="nom-del" data-del-prof title="Видалити номенклатуру" aria-label="Видалити номенклатуру"></button>
         </div>
         <div class="nom-body ${p.collapsed ? 'hidden' : ''}">
             <table>
@@ -745,7 +869,16 @@ function profileHtml(p, idx) {
 function renderProfiles() {
     const root = document.getElementById('profilesContainer');
     if (state.profiles.length === 0) {
-        root.innerHTML = `<div class="card" style="text-align:center; color:#6b7280;">Додайте першу номенклатуру кнопкою нижче</div>`;
+        root.innerHTML = `<div class="empty-state">
+            <div class="es-emoji"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7"/><path d="M9 22V12h6v10"/><path d="M3 9v13h18V9"/></svg></div>
+            <h3>Почнімо розрахунок</h3>
+            <p>Додайте першу номенклатуру — профіль, трубу або кутник, який ріжемо на відрізки.</p>
+            <div class="es-steps">
+                <span class="es-step"><span class="num">1</span>Оберіть профіль</span>
+                <span class="es-step"><span class="num">2</span>Додайте відрізки</span>
+                <span class="es-step"><span class="num">3</span>Розрахуйте</span>
+            </div>
+        </div>`;
         return;
     }
     root.innerHTML = state.profiles.map(profileHtml).join('');
@@ -1017,7 +1150,7 @@ function sheetHtml(sh, idx) {
                     ${holesCount === 0 ? '+ Отвір' : `Отвори <span class="badge">${holesCount}</span>`}
                 </button>
             </td>
-            <td class="act"><button class="del" data-del-piece="${i}" title="Видалити">✕</button></td>
+            <td class="act"><button class="del" data-del-piece="${i}" title="Видалити" aria-label="Видалити"></button></td>
         </tr>
     `}).join('') || `<tr><td colspan="7" style="color:#9ca3af; text-align:center; padding:16px;">Додайте рядки кнопкою нижче</td></tr>`;
 
@@ -1048,7 +1181,7 @@ function sheetHtml(sh, idx) {
             </div>
             ${!isStd ? `<div style="display:flex;gap:4px;align-items:center;"><input type="number" min="100" step="10" value="${sh.sheetW}" data-custom-w style="width:80px;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;"><span style="color:#9ca3af;">×</span><input type="number" min="100" step="10" value="${sh.sheetH}" data-custom-h style="width:80px;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;"></div>` : ''}
             <span class="nom-meta">${totalQty ? totalQty + ' шт.' : '—'}</span>
-            <button class="nom-del" data-del-sheet title="Видалити номенклатуру">✕</button>
+            <button class="nom-del" data-del-sheet title="Видалити номенклатуру" aria-label="Видалити номенклатуру"></button>
         </div>
         <div class="nom-body ${sh.collapsed ? 'hidden' : ''}">
             <table class="piece-tbl">
@@ -1069,7 +1202,16 @@ function sheetHtml(sh, idx) {
 function renderSheets() {
     const root = document.getElementById('sheetsContainer');
     if (state.sheets.length === 0) {
-        root.innerHTML = `<div class="card" style="text-align:center; color:#6b7280;">Додайте першу номенклатуру кнопкою нижче</div>`;
+        root.innerHTML = `<div class="empty-state">
+            <div class="es-emoji"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg></div>
+            <h3>Додайте першу деталь</h3>
+            <p>Оберіть товщину сталевого листа і додайте деталі — прямокутні або круглі.</p>
+            <div class="es-steps">
+                <span class="es-step"><span class="num">1</span>Оберіть лист</span>
+                <span class="es-step"><span class="num">2</span>Додайте деталі</span>
+                <span class="es-step"><span class="num">3</span>Розрахуйте</span>
+            </div>
+        </div>`;
         return;
     }
     root.innerHTML = state.sheets.map(sheetHtml).join('');
@@ -1528,52 +1670,57 @@ function pluralBars(n) {
 }
 
 function renderBarSvg(b, num, barLen, kerf, profileName) {
-    const W = 1000, H = 38;
-    const scale = W / barLen;
-    const palette = ['#bfdbfe','#a7f3d0','#fde68a','#fbcfe8','#c7d2fe','#fed7aa','#bae6fd','#d9f99d','#fecaca','#e9d5ff'];
-    const colorByKey = new Map();
-    let ci = 0;
-    let x = 0;
-    let svg = `<svg class="bar-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">`;
-    svg += `<rect x="0" y="2" width="${W}" height="${H - 4}" fill="#fff" stroke="#9ca3af"/>`;
-    b.cuts.forEach((c, idx) => {
-        const w = c.len * scale;
-        const key = c.mark || ('L' + c.len);
-        if (!colorByKey.has(key)) { colorByKey.set(key, palette[ci % palette.length]); ci++; }
-        const fill = colorByKey.get(key);
-        svg += `<rect class="cut" x="${x.toFixed(2)}" y="2" width="${w.toFixed(2)}" height="${H - 4}" fill="${fill}"/>`;
-        if (w > 30) svg += `<text x="${(x + w / 2).toFixed(2)}" y="${(H / 2).toFixed(2)}" text-anchor="middle" dominant-baseline="central">${c.len}</text>`;
-        x += w;
-        if (idx < b.cuts.length - 1 && kerf > 0) {
-            const kw = Math.max(0.6, kerf * scale);
-            svg += `<rect x="${x.toFixed(2)}" y="2" width="${kw.toFixed(2)}" height="${H - 4}" fill="#374151"/>`;
-            x += kw;
-        }
-    });
-    if (b.waste > 0) {
-        const ww = b.waste * scale;
-        svg += `<rect class="tail-waste" x="${x.toFixed(2)}" y="2" width="${ww.toFixed(2)}" height="${H - 4}"/>`;
-        if (ww > 32) svg += `<text x="${(x + ww / 2).toFixed(2)}" y="${(H / 2).toFixed(2)}" text-anchor="middle" dominant-baseline="central">${Math.round(b.waste)}</text>`;
-        x += ww;
-    }
-    if (b.stockable > 0) {
-        const sw = b.stockable * scale;
-        svg += `<rect class="tail-rem" x="${x.toFixed(2)}" y="2" width="${sw.toFixed(2)}" height="${H - 4}"/>`;
-        if (sw > 32) svg += `<text x="${(x + sw / 2).toFixed(2)}" y="${(H / 2).toFixed(2)}" text-anchor="middle" dominant-baseline="central">${Math.round(b.stockable)}</text>`;
-    }
-    svg += `</svg>`;
+    const totalCutLen = b.cuts.reduce((s, c) => s + (c.len | 0), 0);
+    const usedPct = Math.round((totalCutLen / barLen) * 100);
 
-    const parts = [];
-    if (b.stockable > 0) parts.push(`складський залишок ${Math.round(b.stockable)} мм`);
-    if (b.waste > 0) parts.push(`залишок ${Math.round(b.waste)} мм`);
-    const tailLabel = parts.length ? parts.join(' · ') : 'без залишку';
+    const segs = [];
+    b.cuts.forEach((c, idx) => {
+        segs.push({ kind: 'detail', len: c.len, label: c.len });
+        if (idx < b.cuts.length - 1 && kerf > 0) segs.push({ kind: 'kerf', len: kerf });
+    });
+    if (b.waste > 0) segs.push({ kind: 'waste', len: Math.round(b.waste), label: Math.round(b.waste) });
+    if (b.stockable > 0) segs.push({ kind: 'stock', len: Math.round(b.stockable), label: Math.round(b.stockable) });
+
+    const strip = segs.map(s => {
+        const pctW = (s.len / barLen) * 100;
+        const tiny = pctW < 4;
+        const lbl = tiny || s.kind === 'kerf' ? '' : s.label;
+        return `<div class="bar-seg ${s.kind}" style="flex:${s.len}">${lbl}</div>`;
+    }).join('');
+
+    const lenInM = (mm) => (mm/1000).toFixed(mm % 1000 === 0 ? 0 : 1) + 'м';
+    const tickPositions = [0, 0.25, 0.5, 0.75, 1].map(f => Math.round(barLen * f));
+    const ruler = `<div class="bar-ruler-line"></div>` + tickPositions.map(mm => {
+        const pct = (mm/barLen)*100;
+        return `<div class="bar-tick" style="left:${pct}%"></div><div class="bar-tlabel" style="left:${pct}%">${lenInM(mm)}</div>`;
+    }).join('');
+
+    const detailGroups = new Map();
+    b.cuts.forEach(c => {
+        const key = c.mark ? c.mark : ('L' + c.len);
+        const lbl = c.mark ? `${c.mark} (${c.len})` : `${c.len} мм`;
+        const g = detailGroups.get(key) || { qty: 0, lbl };
+        g.qty++;
+        detailGroups.set(key, g);
+    });
+    const detailPills = [...detailGroups.values()].map(g =>
+        `<span class="bar-pill"><span class="dot"></span><b>${g.qty} ×</b> ${g.lbl}</span>`
+    ).join('');
+    const pills = detailPills
+        + (b.waste > 0    ? `<span class="bar-pill waste"><span class="dot"></span><b>${Math.round(b.waste)} мм</b> обрізок</span>` : '')
+        + (b.stockable > 0 ? `<span class="bar-pill stock"><span class="dot"></span><b>${Math.round(b.stockable)} мм</b> на склад</span>` : '');
+
     const nameTxt = profileName ? ' ' + esc(profileName) : '';
-    return `<div class="bar">
+    const utilColor = usedPct >= 85 ? '#16a34a' : usedPct >= 70 ? '#f59e0b' : '#dc2626';
+
+    return `<div class="bar bar-v2">
         <div class="bar-head">
             <span><b>Хлист${nameTxt} №${num}</b> · ${b.cuts.length} відр.</span>
-            <span>${tailLabel}</span>
+            <span class="bar-util">Заповненість: <b style="color:${utilColor}">${usedPct}%</b></span>
         </div>
-        ${svg}
+        <div class="bar-ruler">${ruler}</div>
+        <div class="bar-strip">${strip}</div>
+        <div class="bar-pills"><span class="bar-pills-label">Підсумок:</span>${pills}</div>
     </div>`;
 }
 
@@ -2200,6 +2347,54 @@ if (state.sheets.length === 0) state.sheets.push(newSheet(1500, 6000));
 applyStateToUI();
 renderProfiles();
 renderSheets();
+
+(function setupMobileUX(){
+    const counter = document.createElement('div');
+    counter.className = 'live-counter';
+    counter.innerHTML = `<span data-count-mm>0 м</span><span class="sep"></span><span data-count-pcs>0 деталей</span>`;
+    document.body.appendChild(counter);
+
+    const sticky = document.createElement('div');
+    sticky.className = 'sticky-cta';
+    sticky.innerHTML = `<button class="btn primary big" id="stickyCalcBtn">Розрахувати</button>`;
+    document.body.appendChild(sticky);
+
+    function getActiveTab() {
+        const t = document.querySelector('.tabs .tab.active');
+        return t ? t.dataset.tab : 'linear';
+    }
+    function update() {
+        const tab = getActiveTab();
+        let totalMm = 0, totalPcs = 0;
+        if (tab === 'linear' && state.profiles) {
+            state.profiles.forEach(p => (p.cuts || []).forEach(c => {
+                const len = +c.length || 0, qty = +c.qty || 0;
+                totalMm += len * qty; totalPcs += qty;
+            }));
+        } else if (tab === 'sheet' && state.sheets) {
+            state.sheets.forEach(s => (s.pieces || []).forEach(pc => totalPcs += +pc.qty || 0));
+            const area = state.sheets.reduce((acc, s) => acc + (s.pieces || []).reduce((a, pc) => a + ((+pc.w||0) * (+pc.h||0) * (+pc.qty||0)), 0), 0);
+            counter.querySelector('[data-count-mm]').textContent = area > 0 ? (area/1000000).toFixed(2).replace(/\.?0+$/, '') + ' м²' : '0 м²';
+            counter.querySelector('[data-count-pcs]').textContent = totalPcs + ' дет.';
+        }
+        if (tab === 'linear') {
+            const m = totalMm/1000;
+            counter.querySelector('[data-count-mm]').textContent = (m >= 100 ? m.toFixed(0) : m.toFixed(1).replace(/\.0$/, '')) + ' м';
+            counter.querySelector('[data-count-pcs]').textContent = totalPcs + ' відр.';
+        }
+        counter.classList.toggle('visible', totalPcs > 0);
+        const stickyBtn = document.getElementById('stickyCalcBtn');
+        if (stickyBtn) stickyBtn.textContent = tab === 'sheet' ? 'Розрахувати лист' : 'Розрахувати порізку';
+    }
+    document.body.addEventListener('click', (e) => {
+        if (e.target.id !== 'stickyCalcBtn') return;
+        const tab = getActiveTab();
+        const realBtn = document.getElementById(tab === 'sheet' ? 'btnCalcSheet' : 'btnCalc');
+        if (realBtn) realBtn.click();
+    });
+    ['input', 'change', 'click'].forEach(ev => document.addEventListener(ev, () => setTimeout(update, 0)));
+    update();
+})();
 </script>
 </body>
 </html>
