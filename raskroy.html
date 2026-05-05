@@ -583,6 +583,7 @@ function newPiece() { return { shape: 'rect', w: 0, h: 0, qty: 1, holes: [] }; }
 function validPiece(c) {
     if ((c.qty | 0) <= 0) return false;
     if (c.shape === 'circle') return (c.w | 0) > 0;
+    if (c.shape === 'strip')  return (c.h | 0) > 0;
     return (c.w | 0) > 0 && (c.h | 0) > 0;
 }
 
@@ -597,18 +598,21 @@ function openHolesModal(sheetId, pieceIdx) {
     const piece = sh.pieces[pieceIdx];
     if (!piece) return;
     const isCircle = piece.shape === 'circle';
-    if ((piece.w | 0) <= 0 || (!isCircle && (piece.h | 0) <= 0)) {
+    const isStrip  = piece.shape === 'strip';
+    const effW = isStrip ? sh.sheetW : (piece.w | 0);
+    const effH = isCircle ? effW : (piece.h | 0);
+    if (effW <= 0 || effH <= 0) {
         alert('Спочатку вкажіть розміри деталі.');
         return;
     }
     holesEditor.sheetId = sheetId;
     holesEditor.pieceIdx = pieceIdx;
-    holesEditor.piece = { shape: piece.shape, w: piece.w, h: isCircle ? piece.w : piece.h };
+    holesEditor.piece = { shape: isCircle ? 'circle' : 'rect', w: effW, h: effH };
     holesEditor.holes = (Array.isArray(piece.holes) ? piece.holes : [])
         .filter(h => (h.d | 0) > 0)
         .map(h => ({ d: h.d | 0, qty: (h.qty | 0) || 1, x: h.x | 0, y: h.y | 0 }));
     holesEditor.selectedIdx = -1;
-    const dims = isCircle ? `Ø${piece.w}` : `${piece.w}×${piece.h}`;
+    const dims = isCircle ? `Ø${effW}` : `${effW}×${effH}${isStrip ? ' (відрізок)' : ''}`;
     document.getElementById('holesModalTitle').textContent = `Отвори в деталі ${dims}`;
     renderHolesModal();
     document.getElementById('holesModal').hidden = false;
@@ -1213,16 +1217,21 @@ function sheetHtml(sh, idx) {
 
     const rows = sh.pieces.map((c, i) => {
         const isCircle = c.shape === 'circle';
+        const isStrip  = c.shape === 'strip';
         const holesCount = Array.isArray(c.holes) ? c.holes.reduce((s, h) => s + ((h.d|0) > 0 ? (h.qty|0 || 1) : 0), 0) : 0;
+        const wValue = isStrip ? sh.sheetW : (c.w || '');
+        const wDisabled = isStrip ? 'disabled style="background:#f3f4f6;color:#9ca3af;"' : '';
+        const hDisabled = isCircle ? 'disabled style="background:#f3f4f6;color:#9ca3af;"' : '';
         return `
         <tr>
             <td style="color:#6b7280; font-variant-numeric:tabular-nums; width:40px;">${i + 1}</td>
             <td><select data-pi="${i}" data-k="shape" style="padding:4px 6px;border:1px solid #d1d5db;border-radius:4px;font-size:14px;font-family:inherit;background:#fff;width:100%;">
-                <option value="rect" ${!isCircle ? 'selected' : ''}>прямокутник</option>
+                <option value="rect"   ${!isCircle && !isStrip ? 'selected' : ''}>прямокутник</option>
                 <option value="circle" ${isCircle ? 'selected' : ''}>коло</option>
+                <option value="strip"  ${isStrip  ? 'selected' : ''}>відрізок (на повну ширину)</option>
             </select></td>
-            <td class="num"><input type="number" min="1" step="1" value="${c.w || ''}" data-pi="${i}" data-k="w" placeholder="${isCircle ? 'Ø' : ''}"></td>
-            <td class="num"><input type="number" min="1" step="1" value="${isCircle ? '' : (c.h || '')}" data-pi="${i}" data-k="h" ${isCircle ? 'disabled style="background:#f3f4f6;color:#9ca3af;"' : ''}></td>
+            <td class="num"><input type="number" min="1" step="1" value="${wValue}" data-pi="${i}" data-k="w" placeholder="${isCircle ? 'Ø' : ''}" ${wDisabled}></td>
+            <td class="num"><input type="number" min="1" step="1" value="${isCircle ? '' : (c.h || '')}" data-pi="${i}" data-k="h" ${hDisabled}></td>
             <td class="num"><input type="number" min="1" step="1" value="${c.qty || ''}" data-pi="${i}" data-k="qty"></td>
             <td class="num">
                 <button class="holes-btn" data-open-holes="${i}">
@@ -1235,23 +1244,28 @@ function sheetHtml(sh, idx) {
 
     const pieceCardsInner = sh.pieces.map((c, i) => {
         const isCircle = c.shape === 'circle';
+        const isStrip  = c.shape === 'strip';
         const holesCount = Array.isArray(c.holes) ? c.holes.reduce((s, h) => s + ((h.d|0) > 0 ? (h.qty|0 || 1) : 0), 0) : 0;
+        const titleTxt = isCircle ? 'Коло' : isStrip ? 'Відрізок (повна ширина)' : 'Прямокутник';
+        const wValue   = isStrip ? sh.sheetW : (c.w || '');
+        const wLabel   = isCircle ? 'Ø, мм' : isStrip ? 'Ширина (= лист), мм' : 'Ширина, мм';
         return `
         <div class="pc-card">
             <span class="pc-num">№${i + 1}</span>
-            <span class="pc-title">${isCircle ? 'Коло' : 'Прямокутник'}</span>
+            <span class="pc-title">${titleTxt}</span>
             <button class="del pc-del" data-del-piece="${i}" title="Видалити" aria-label="Видалити"></button>
             <div class="pc-fields">
                 <div class="pc-field">
                     <label>Форма</label>
                     <select data-pi="${i}" data-k="shape">
-                        <option value="rect" ${!isCircle ? 'selected' : ''}>прямокутник</option>
+                        <option value="rect"   ${!isCircle && !isStrip ? 'selected' : ''}>прямокутник</option>
                         <option value="circle" ${isCircle ? 'selected' : ''}>коло</option>
+                        <option value="strip"  ${isStrip  ? 'selected' : ''}>відрізок</option>
                     </select>
                 </div>
                 <div class="pc-field">
-                    <label>${isCircle ? 'Ø, мм' : 'Ширина, мм'}</label>
-                    <input type="number" min="1" step="1" value="${c.w || ''}" data-pi="${i}" data-k="w">
+                    <label>${wLabel}</label>
+                    <input type="number" min="1" step="1" value="${wValue}" data-pi="${i}" data-k="w" ${isStrip ? 'disabled' : ''}>
                 </div>
                 <div class="pc-field">
                     <label>Довжина, мм</label>
@@ -1386,6 +1400,7 @@ document.getElementById('sheetsContainer').addEventListener('change', e => {
         const v = t.value;
         if (v === 'custom') { sh.sheetW = sh.sheetW || 1500; sh.sheetH = sh.sheetH || 6000; }
         else { const [w, h] = v.split('x').map(Number); sh.sheetW = w; sh.sheetH = h; }
+        sh.pieces.forEach(p => { if (p.shape === 'strip') p.w = sh.sheetW; });
         renderSheets(); save();
     }
 });
@@ -1451,7 +1466,16 @@ document.getElementById('sheetsContainer').addEventListener('input', e => {
         return;
     }
     if (t.matches('[data-kerf]')) { sh.kerf = parseInt(t.value, 10) || 0; save(); return; }
-    if (t.matches('[data-custom-w]')) { const v = parseInt(t.value, 10) || 0; if (v > 0) { sh.sheetW = v; save(); } return; }
+    if (t.matches('[data-custom-w]')) {
+        const v = parseInt(t.value, 10) || 0;
+        if (v > 0) {
+            sh.sheetW = v;
+            // keep strip pieces in sync
+            sh.pieces.forEach(p => { if (p.shape === 'strip') p.w = v; });
+            save();
+        }
+        return;
+    }
     if (t.matches('[data-custom-h]')) { const v = parseInt(t.value, 10) || 0; if (v > 0) { sh.sheetH = v; save(); } return; }
     if (t.matches('[data-pi]')) {
         const pi = +t.dataset.pi, k = t.dataset.k;
@@ -1459,6 +1483,7 @@ document.getElementById('sheetsContainer').addEventListener('input', e => {
         if (k === 'shape') {
             piece.shape = t.value;
             if (piece.shape === 'circle') piece.h = piece.w;
+            if (piece.shape === 'strip')  piece.w = sh.sheetW;
             renderSheets();
         } else {
             piece[k] = parseInt(t.value, 10) || 0;
@@ -1866,12 +1891,14 @@ function pack2dShelf(piecesIn, sheetW, sheetH, kerf) {
     let nid = 0;
     piecesIn.forEach((p, ci) => {
         const isCircle = p.shape === 'circle';
-        const w = p.w | 0;
+        const isStrip  = p.shape === 'strip';
+        const w = isStrip ? sheetW : (p.w | 0);
         const h = isCircle ? w : (p.h | 0);
         const qty = p.qty | 0;
         if (w <= 0 || h <= 0 || qty <= 0) return;
         const holes = (Array.isArray(p.holes) ? p.holes : []).filter(hh => (hh.d | 0) > 0 && (hh.qty | 0) > 0);
-        for (let q = 0; q < qty; q++) items.push({ id: nid++, w, h, shape: isCircle ? 'circle' : 'rect', holes, srcIdx: ci });
+        const itemShape = isCircle ? 'circle' : 'rect'; // strip is geometrically a rect; mark renderer-wise as rect
+        for (let q = 0; q < qty; q++) items.push({ id: nid++, w, h, shape: itemShape, holes, srcIdx: ci, isStrip });
     });
     if (items.length === 0) return { error: 'Не задано жодної деталі.', sheets: [] };
 
@@ -2302,15 +2329,17 @@ function renderResultSheet(report) {
         cvHtml += `<table class="cv-tbl"><thead><tr><th>№</th><th>Форма</th><th>Розмір, мм</th><th>Отвори</th><th>Кількість</th></tr></thead><tbody>`;
         validPieces.forEach((c, i) => {
             const isCircle = c.shape === 'circle';
-            const dims = isCircle ? `Ø${c.w}` : `${c.w} × ${c.h}`;
+            const isStrip  = c.shape === 'strip';
+            const w = isStrip ? p.sheetW : c.w;
+            const dims = isCircle ? `Ø${c.w}` : `${w} × ${c.h}`;
+            const shapeTxt = isCircle ? 'коло' : isStrip ? 'відрізок (повна ширина)' : 'прямокутник';
             const validHoles = (Array.isArray(c.holes) ? c.holes : []).filter(h => (h.d|0) > 0 && (h.qty|0) > 0);
-            // Group by diameter
             const grouped = new Map();
             for (const h of validHoles) grouped.set(h.d, (grouped.get(h.d) || 0) + (h.qty|0));
             const holesText = grouped.size
                 ? [...grouped.entries()].map(([d, q]) => `Ø${d}×${q}`).join(', ')
                 : '—';
-            cvHtml += `<tr><td>${i + 1}</td><td>${isCircle ? 'коло' : 'прямокутник'}</td><td>${dims}</td><td>${holesText}</td><td>${c.qty}</td></tr>`;
+            cvHtml += `<tr><td>${i + 1}</td><td>${shapeTxt}</td><td>${dims}</td><td>${holesText}</td><td>${c.qty}</td></tr>`;
         });
         cvHtml += `</tbody></table>
             </div>
