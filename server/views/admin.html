@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Адмін · КТ Сталь</title>
+<style>
+* { box-sizing: border-box; }
+:root {
+    --kt-yellow: #ffe600;
+    --kt-yellow-hover: #ffd000;
+    --kt-yellow-strong: #f0b800;
+    --kt-yellow-tint: #fff8b8;
+    --kt-graphite: #3a3f4a;
+    --kt-graphite-2: #4a505c;
+}
+html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: #f4f5f7; color: #1f2937; }
+body { padding: 16px; max-width: 1200px; margin: 0 auto; }
+header {
+    background: var(--kt-graphite); color: #fff;
+    padding: 14px 18px; border-radius: 8px;
+    display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    margin-bottom: 18px; box-shadow: 0 4px 14px rgba(58,63,74,0.08);
+}
+header h1 { margin: 0; font-size: 17px; font-weight: 700; }
+header .sub { font-size: 11px; color: #d1d5db; margin-top: 2px; }
+header .right { display: flex; gap: 8px; align-items: center; }
+header .who { font-size: 13px; color: #d1d5db; }
+header a, header form button {
+    color: #fff; text-decoration: none; font-size: 13px;
+    background: transparent; border: 1px solid var(--kt-graphite-2);
+    padding: 6px 12px; border-radius: 6px; cursor: pointer; font-family: inherit;
+}
+header a:hover, header form button:hover { background: var(--kt-graphite-2); }
+.card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px 18px; margin-bottom: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+h2 { font-size: 14px; margin: 0 0 12px 0; color: #374151; text-transform: uppercase; letter-spacing: 0.4px; font-weight: 700; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+th { font-size: 11px; text-transform: uppercase; color: #6b7280; letter-spacing: 0.4px; font-weight: 700; }
+.row-actions { display: flex; gap: 4px; flex-wrap: wrap; }
+.btn { background: #fff; border: 1px solid #d1d5db; padding: 6px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; font-family: inherit; color: #374151; }
+.btn:hover { background: #f9fafb; }
+.btn.primary { background: var(--kt-yellow); border-color: var(--kt-yellow-strong); color: var(--kt-graphite); font-weight: 600; }
+.btn.primary:hover { background: var(--kt-yellow-hover); }
+.btn.danger { color: #dc2626; border-color: #fecaca; }
+.btn.danger:hover { background: #fee2e2; }
+.pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.pill.active { background: #d1fae5; color: #065f46; }
+.pill.disabled { background: #fee2e2; color: #991b1b; }
+.pill.admin { background: var(--kt-yellow-tint); color: #78350f; border: 1px solid var(--kt-yellow-strong); }
+.add-form { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
+.add-form .field { display: flex; flex-direction: column; gap: 4px; }
+.add-form .field label { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.3px; font-weight: 600; }
+.add-form input[type=text], .add-form input[type=password] { padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; font-family: inherit; min-width: 180px; }
+.add-form input[type=checkbox] { width: 18px; height: 18px; }
+.add-form .check { display: flex; align-items: center; gap: 6px; }
+.muted { color: #6b7280; }
+.empty-row td { color: #9ca3af; text-align: center; padding: 16px; font-style: italic; }
+.log-table td { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 12px; }
+.log-action { display: inline-block; padding: 1px 6px; border-radius: 4px; background: #f1f5f9; font-weight: 600; }
+.log-action.login_fail, .log-action.session_killed_inactive { background: #fee2e2; color: #991b1b; }
+.log-action.login_ok, .log-action.create_user, .log-action.enable_user { background: #d1fae5; color: #065f46; }
+.log-action.disable_user, .log-action.delete_user, .log-action.kill_session { background: #fef3c7; color: #78350f; }
+.refresh-btn { font-size: 11px; }
+@media (max-width: 720px) {
+    body { padding: 10px; }
+    table { font-size: 12px; }
+    th, td { padding: 6px; }
+    th:nth-child(4), th:nth-child(5), td:nth-child(4), td:nth-child(5) { display: none; }
+    .add-form input[type=text], .add-form input[type=password] { min-width: 0; flex: 1; }
+}
+</style>
+</head>
+<body>
+
+<header>
+    <div>
+        <h1>Адмін-панель · КТ Сталь</h1>
+        <div class="sub">Керування користувачами та сесіями</div>
+    </div>
+    <div class="right">
+        <span class="who">Адмін: {{ADMIN}}</span>
+        <a href="/">Калькулятор</a>
+        <form method="POST" action="/logout" style="margin:0;"><button type="submit">Вийти</button></form>
+    </div>
+</header>
+
+<div class="card">
+    <h2>Додати користувача</h2>
+    <form class="add-form" id="addForm" autocomplete="off">
+        <div class="field"><label>Логін</label><input type="text" name="username" required></div>
+        <div class="field"><label>Пароль</label><input type="password" name="password" required></div>
+        <div class="field"><label class="check"><input type="checkbox" name="is_admin"> <span>Адмін</span></label></div>
+        <button type="submit" class="btn primary">Додати</button>
+    </form>
+    <div id="addMsg" style="font-size:13px;color:#dc2626;margin-top:8px;min-height:16px;"></div>
+</div>
+
+<div class="card">
+    <h2>Користувачі <button class="btn refresh-btn" onclick="refresh()" style="margin-left:8px;">↻ оновити</button></h2>
+    <table>
+        <thead><tr>
+            <th>Логін</th><th>Роль</th><th>Стан</th>
+            <th>Створено</th><th>Останній вхід</th><th>Дії</th>
+        </tr></thead>
+        <tbody id="usersBody"></tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h2>Активні сесії</h2>
+    <table>
+        <thead><tr><th>Користувач</th><th>SID</th><th>Закінчується</th><th>Дії</th></tr></thead>
+        <tbody id="sessionsBody"></tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h2>Журнал дій <span class="muted" style="font-size:11px;text-transform:none;letter-spacing:0;font-weight:400;">(останні 200)</span></h2>
+    <table class="log-table">
+        <thead><tr><th>Час</th><th>Користувач</th><th>Дія</th><th>IP</th><th>Деталі</th></tr></thead>
+        <tbody id="logBody"></tbody>
+    </table>
+</div>
+
+<script>
+const fmtDt = (ts) => ts ? new Date(ts).toLocaleString('uk-UA', { dateStyle: 'short', timeStyle: 'medium' }) : '—';
+const escHtml = (s) => String(s == null ? '' : s).replace(/[<>&"']/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
+
+let me = null;
+
+async function api(method, url, body) {
+    const opts = { method, headers: {'Content-Type':'application/json'} };
+    if (body) opts.body = JSON.stringify(body);
+    const r = await fetch(url, opts);
+    if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        throw new Error(j.error || r.statusText);
+    }
+    return r.status === 204 ? null : r.json();
+}
+
+async function loadUsers() {
+    const users = await api('GET', '/admin/api/users');
+    const tbody = document.getElementById('usersBody');
+    if (!users.length) { tbody.innerHTML = '<tr class="empty-row"><td colspan="6">Поки що немає користувачів</td></tr>'; return; }
+    tbody.innerHTML = users.map(u => {
+        const isMe = me && u.id === me.id;
+        return `
+        <tr data-id="${u.id}" data-active="${u.is_active}" data-admin="${u.is_admin}">
+            <td><b>${escHtml(u.username)}</b>${isMe ? ' <span class="muted">(ви)</span>' : ''}</td>
+            <td>${u.is_admin ? '<span class="pill admin">Адмін</span>' : 'Користувач'}</td>
+            <td>${u.is_active ? '<span class="pill active">Активний</span>' : '<span class="pill disabled">Заблокований</span>'}</td>
+            <td class="muted">${fmtDt(u.created_at)}</td>
+            <td class="muted">${fmtDt(u.last_login)}</td>
+            <td class="row-actions">
+                ${isMe ? '<span class="muted" style="font-size:11px;">—</span>' : `
+                <button class="btn" data-act="${u.is_active ? 'disable' : 'enable'}">${u.is_active ? 'Заблокувати' : 'Розблокувати'}</button>
+                <button class="btn" data-act="admin">${u.is_admin ? '↓ Звичайний' : '↑ Адмін'}</button>
+                <button class="btn" data-act="password">Пароль…</button>
+                <button class="btn danger" data-act="delete">Видалити</button>
+                `}
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+async function loadSessions() {
+    const sessions = await api('GET', '/admin/api/sessions');
+    const tbody = document.getElementById('sessionsBody');
+    if (!sessions.length) {
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="4">Активних сесій немає</td></tr>';
+        return;
+    }
+    tbody.innerHTML = sessions.map(s => `
+        <tr>
+            <td><b>${escHtml(s.username || '—')}</b></td>
+            <td class="muted" style="font-family:ui-monospace,monospace;font-size:11px;">${escHtml(s.sid).slice(0, 16)}…</td>
+            <td class="muted">${fmtDt(s.expires)}</td>
+            <td><button class="btn danger" data-kill="${escHtml(s.sid)}">Завершити</button></td>
+        </tr>`).join('');
+}
+
+async function loadLog() {
+    const rows = await api('GET', '/admin/api/log?limit=200');
+    const tbody = document.getElementById('logBody');
+    if (!rows.length) { tbody.innerHTML = '<tr class="empty-row"><td colspan="5">Журнал порожній</td></tr>'; return; }
+    tbody.innerHTML = rows.map(r => `
+        <tr>
+            <td class="muted">${fmtDt(r.ts)}</td>
+            <td>${escHtml(r.username || '—')}</td>
+            <td><span class="log-action ${escHtml(r.action)}">${escHtml(r.action)}</span></td>
+            <td class="muted">${escHtml(r.ip || '')}</td>
+            <td class="muted" title="${escHtml(r.details || '')}">${escHtml(r.details || '').slice(0, 80)}</td>
+        </tr>`).join('');
+}
+
+async function refresh() {
+    try { await Promise.all([loadUsers(), loadSessions(), loadLog()]); }
+    catch (e) { console.error(e); }
+}
+
+document.getElementById('addForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = e.target;
+    const data = {
+        username: f.username.value.trim(),
+        password: f.password.value,
+        is_admin: f.is_admin.checked,
+    };
+    document.getElementById('addMsg').textContent = '';
+    try {
+        await api('POST', '/admin/api/users', data);
+        f.reset();
+        refresh();
+    } catch (err) {
+        document.getElementById('addMsg').textContent = err.message;
+    }
+});
+
+document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-act]');
+    if (btn) {
+        const tr = btn.closest('tr[data-id]');
+        const id = +tr.dataset.id;
+        const act = btn.dataset.act;
+        try {
+            if (act === 'enable' || act === 'disable') {
+                await api('POST', `/admin/api/users/${id}/active`, { active: act === 'enable' });
+            } else if (act === 'admin') {
+                const wasAdmin = tr.dataset.admin === '1';
+                await api('POST', `/admin/api/users/${id}/admin`, { is_admin: !wasAdmin });
+            } else if (act === 'password') {
+                const pw = prompt('Новий пароль (мінімум 6 символів):');
+                if (!pw) return;
+                await api('POST', `/admin/api/users/${id}/password`, { password: pw });
+                alert('Пароль змінено.');
+            } else if (act === 'delete') {
+                if (!confirm('Точно видалити користувача? Дію не можна скасувати.')) return;
+                await api('DELETE', `/admin/api/users/${id}`);
+            }
+            refresh();
+        } catch (err) { alert(err.message); }
+    }
+    const killBtn = e.target.closest('button[data-kill]');
+    if (killBtn) {
+        if (!confirm('Завершити сесію? Користувач буде розлогінений.')) return;
+        try { await api('DELETE', `/admin/api/sessions/${encodeURIComponent(killBtn.dataset.kill)}`); refresh(); }
+        catch (err) { alert(err.message); }
+    }
+});
+
+(async () => {
+    try { me = await api('GET', '/admin/api/me'); } catch {}
+    await refresh();
+    setInterval(refresh, 30000);
+})();
+</script>
+</body>
+</html>

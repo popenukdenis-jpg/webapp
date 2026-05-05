@@ -1,0 +1,33 @@
+[Unit]
+Description=KT Stal raskroy calculator (Node.js)
+After=network.target
+
+[Service]
+Type=simple
+User=raskroy
+Group=raskroy
+WorkingDirectory=/opt/raskroy/server
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=3
+
+# Production environment
+Environment=NODE_ENV=production
+Environment=HOST=127.0.0.1
+Environment=PORT=3000
+Environment=TRUST_PROXY=1
+# Set a stable secret here, otherwise sessions are invalidated on every restart:
+# Environment=SESSION_SECRET=__paste_a_long_random_string__
+# DB and calc HTML paths (defaults are fine when WorkingDirectory is /opt/raskroy/server):
+# Environment=DB_PATH=/opt/raskroy/server/data.sqlite
+# Environment=CALC_HTML=/opt/raskroy/raskroy.html
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/raskroy/server
+
+[Install]
+WantedBy=multi-user.target
