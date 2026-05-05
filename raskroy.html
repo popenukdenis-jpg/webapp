@@ -2050,7 +2050,7 @@ function holeDisplayPos(p, hole, isPortrait) {
     return { cx: p.x + lx, cy: p.y + ly };
 }
 
-function calcSheetMetrics(sheet, kerf) {
+function calcSheetMetrics(sheet, kerf, sheetW, sheetH) {
     let pierces = 0, cutLen = 0, used = 0, soldH = 0;
     for (const p of sheet.placements) {
         pierces += 1;
@@ -2065,6 +2065,11 @@ function calcSheetMetrics(sheet, kerf) {
                 cutLen += Math.PI * hd * hq;
             }
         }
+    }
+    // Відрізний рез, що відокремлює блок деталей від ділового залишку листа
+    if (sheet.placements.length > 0 && sheetW != null && sheetH != null && soldH < sheetH) {
+        pierces += 1;
+        cutLen += sheetW;
     }
     return { pierces, cutLen, used, soldH };
 }
@@ -2208,7 +2213,7 @@ function renderResultSheet(report) {
     report.results.forEach(entry => {
         const r = entry.r;
         if (r.error || !r.sheets) return;
-        entry.metrics = r.sheets.map(s => calcSheetMetrics(s, r.kerf));
+        entry.metrics = r.sheets.map(s => calcSheetMetrics(s, r.kerf, r.sheetW, r.sheetH));
         entry.pierces = entry.metrics.reduce((s, m) => s + m.pierces, 0);
         entry.cutLen = entry.metrics.reduce((s, m) => s + m.cutLen, 0);
         entry.soldArea = entry.metrics.reduce((s, m) => s + m.soldH * r.sheetW, 0); // мм²
